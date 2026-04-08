@@ -1,0 +1,23 @@
+<div class="chat-wrapper">
+
+  <div class="chat-messages">
+    <div *ngFor="let msg of messages" 
+         [ngClass]="msg.role === 'user' ? 'message user' : 'message ai'">
+
+      <div class="bubble">
+        <div [innerHTML]="msg.text"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="chat-input">
+    <input 
+      [(ngModel)]="userInput" 
+      placeholder="Ask interview question..."
+      (keydown.enter)="sendMessage()"
+    />
+    <button (click)="sendMessage()">Send</button>
+  </div>
+
+</div>
