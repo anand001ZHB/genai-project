@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { marked } from 'marked';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-chat',
@@ -33,7 +34,7 @@ export class Chat implements AfterViewChecked {
 
     this.userInput = '';
 
-    const apiUrl = 'https://humble-garbanzo-jw94xq7wxvq2p7v6-3000.app.github.dev/chat';
+    const apiUrl = environment.apiUrl;
 
     console.log("before api call");
 
