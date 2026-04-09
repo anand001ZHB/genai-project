@@ -93,6 +93,54 @@
   font-size: 0.95rem;
 }
 
+.welcome-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-lg);
+  min-height: calc(100vh - 88px);
+}
+
+.welcome-card {
+  width: min(760px, 100%);
+  text-align: center;
+  padding: var(--spacing-2xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.welcome-card h1 {
+  margin: 0 0 var(--spacing-md);
+  font-size: clamp(1.7rem, 2.3vw, 2.4rem);
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.welcome-card p {
+  margin: 0 0 var(--spacing-lg);
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.welcome-start {
+  min-width: 160px;
+  padding: var(--spacing-md) var(--spacing-2xl);
+}
+
+@media (max-width: 900px) {
+  .welcome-screen {
+    min-height: calc(100vh - 120px);
+    padding: var(--spacing-md);
+  }
+
+  .welcome-card {
+    padding: var(--spacing-xl);
+  }
+}
+
 .chat-wrapper {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -106,12 +154,12 @@
 .intro-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--spacing-sm);
   justify-content: space-between;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-2xl) var(--spacing-2xl) 14px;
+  padding: var(--spacing-xl) var(--spacing-xl) 14px;
   min-height: 0;
   overflow: hidden;
   box-shadow: var(--shadow-md);
@@ -153,11 +201,13 @@
   line-height: 1.6;
   color: var(--muted);
   font-size: 0.95rem;
+  margin-bottom: 30px;
 }
 
 .settings-panel {
   display: grid;
   gap: var(--spacing-md);
+   margin-top: 30px;
 }
 
 .settings-panel label {

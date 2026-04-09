@@ -38,11 +38,16 @@ export class Chat implements AfterViewChecked {
     { class: 'theme-light', label: 'Light' }
   ];
   currentThemeIndex = 0;
+  showWelcomeScreen = true;
 
   constructor(private http: HttpClient) { }
 
   get currentThemeName(): string {
     return this.themes[this.currentThemeIndex]?.label || 'Night';
+  }
+
+  enterPlatform() {
+    this.showWelcomeScreen = false;
   }
 
   cycleThemeNext() {
