@@ -1,0 +1,206 @@
+/* ============================================
+   GLOBAL COLOR SYSTEM
+   ============================================
+   All colors used in the application are defined here
+   Use these variables throughout all components
+   ============================================ */
+
+:root {
+  /* ===== BODY/GLOBAL COLORS (used before theme is applied) ===== */
+  --body-bg: #0e1323;
+  --body-text: #E2E8F0;
+
+  /* ===== DARK THEME COLORS ===== */
+  --dark-bg: #0e1323;
+  --dark-panel: #111827;
+  --dark-surface: #111827;
+  --dark-text: #E2E8F0;
+  --dark-text-muted: #CBD5E1;
+  --dark-input: #0f172a;
+  --dark-button: #2563EB;
+  --dark-button-hover: #3b82f6;
+  --dark-button-text: #F8FAFC;
+  --dark-border: rgba(148, 163, 184, 0.2);
+  --dark-border-secondary: rgba(255, 255, 255, 0.35);
+  --dark-bubble-user: linear-gradient(135deg, #2563EB, #1D4ED8);
+  --dark-bubble-ai: #0f172a;
+  --dark-bubble-ai-text: #CBD5E1;
+  --dark-code-bg: #12141f;
+  --dark-input-placeholder: #7a84a2;
+  --dark-theme-bg: rgba(255, 255, 255, 0.08);
+  --dark-theme-border: rgba(255, 255, 255, 0.12);
+  --dark-selector-hover: rgba(255, 255, 255, 0.12);
+  --dark-selector-border: rgba(255, 255, 255, 0.3);
+  --dark-secondary-hover: rgba(148, 163, 184, 0.24);
+  --dark-button-shadow-hover: 0 14px 40px rgba(37, 99, 235, 0.4);
+
+  /* ===== SKY THEME COLORS ===== */
+  --sky-bg: #f0f7ff;
+  --sky-panel: #ffffff;
+  --sky-surface: #f5faff;
+  --sky-text: #0c3d7a;
+  --sky-text-muted: #3b6ba8;
+  --sky-input: #f8fcff;
+  --sky-button: #0ea5e9;
+  --sky-button-hover: #0284c7;
+  --sky-button-text: #ffffff;
+  --sky-border: rgba(14, 165, 233, 0.25);
+  --sky-border-secondary: rgba(14, 102, 194, 0.3);
+  --sky-bubble-user: linear-gradient(135deg, #0ea5e9, #0284c7);
+  --sky-bubble-ai: #f5faff;
+  --sky-bubble-ai-text: #0c3d7a;
+  --sky-code-bg: #e0f2fe;
+  --sky-input-placeholder: #4a7ba7;
+  --sky-theme-bg: rgba(14, 165, 233, 0.08);
+  --sky-theme-border: rgba(14, 165, 233, 0.2);
+  --sky-selector-hover: rgba(14, 165, 233, 0.1);
+  --sky-selector-border: rgba(14, 165, 233, 0.3);
+  --sky-secondary-hover: rgba(14, 165, 233, 0.12);
+  --sky-button-shadow-hover: 0 14px 40px rgba(14, 165, 233, 0.25);
+
+  /* ===== LAVENDER THEME COLORS ===== */
+  --lavender-bg: #faf7ff;
+  --lavender-panel: #ffffff;
+  --lavender-surface: #faf5ff;
+  --lavender-text: #4a1d7a;
+  --lavender-text-muted: #7a519a;
+  --lavender-input: #fcfaff;
+  --lavender-button: #a855f7;
+  --lavender-button-hover: #9333ea;
+  --lavender-button-text: #ffffff;
+  --lavender-border: rgba(168, 85, 247, 0.25);
+  --lavender-border-secondary: rgba(147, 51, 234, 0.3);
+  --lavender-bubble-user: linear-gradient(135deg, #a855f7, #9333ea);
+  --lavender-bubble-ai: #faf5ff;
+  --lavender-bubble-ai-text: #4a1d7a;
+  --lavender-code-bg: #f3e8ff;
+  --lavender-input-placeholder: #7a519a;
+  --lavender-theme-bg: rgba(168, 85, 247, 0.08);
+  --lavender-theme-border: rgba(168, 85, 247, 0.2);
+  --lavender-selector-hover: rgba(168, 85, 247, 0.1);
+  --lavender-selector-border: rgba(168, 85, 247, 0.3);
+  --lavender-secondary-hover: rgba(168, 85, 247, 0.12);
+  --lavender-button-shadow-hover: 0 14px 40px rgba(168, 85, 247, 0.25);
+
+  /* ===== SAGE THEME COLORS ===== */
+  --sage-bg: #f0fdf4;
+  --sage-panel: #ffffff;
+  --sage-surface: #f5fdf6;
+  --sage-text: #134e19;
+  --sage-text-muted: #4b7357;
+  --sage-input: #f8fefb;
+  --sage-button: #16a34a;
+  --sage-button-hover: #15803d;
+  --sage-button-text: #ffffff;
+  --sage-border: rgba(22, 163, 74, 0.25);
+  --sage-border-secondary: rgba(21, 128, 61, 0.3);
+  --sage-bubble-user: linear-gradient(135deg, #16a34a, #15803d);
+  --sage-bubble-ai: #f5fdf6;
+  --sage-bubble-ai-text: #134e19;
+  --sage-code-bg: #dcfce7;
+  --sage-input-placeholder: #4b7357;
+  --sage-theme-bg: rgba(22, 163, 74, 0.08);
+  --sage-theme-border: rgba(22, 163, 74, 0.2);
+  --sage-selector-hover: rgba(22, 163, 74, 0.1);
+  --sage-selector-border: rgba(22, 163, 74, 0.3);
+  --sage-secondary-hover: rgba(22, 163, 74, 0.12);
+  --sage-button-shadow-hover: 0 14px 40px rgba(22, 163, 74, 0.25);
+
+  /* ===== ROSE THEME COLORS ===== */
+  --rose-bg: #fff5f7;
+  --rose-panel: #ffffff;
+  --rose-surface: #faf8fa;
+  --rose-text: #7d1935;
+  --rose-text-muted: #a8516e;
+  --rose-input: #fffafb;
+  --rose-button: #e91e63;
+  --rose-button-hover: #c2185b;
+  --rose-button-text: #ffffff;
+  --rose-border: rgba(233, 30, 99, 0.25);
+  --rose-border-secondary: rgba(194, 24, 91, 0.3);
+  --rose-bubble-user: linear-gradient(135deg, #e91e63, #c2185b);
+  --rose-bubble-ai: #faf8fa;
+  --rose-bubble-ai-text: #7d1935;
+  --rose-code-bg: #fce4ec;
+  --rose-input-placeholder: #a8516e;
+  --rose-theme-bg: rgba(233, 30, 99, 0.08);
+  --rose-theme-border: rgba(233, 30, 99, 0.2);
+  --rose-selector-hover: rgba(233, 30, 99, 0.1);
+  --rose-selector-border: rgba(233, 30, 99, 0.3);
+  --rose-secondary-hover: rgba(233, 30, 99, 0.12);
+  --rose-button-shadow-hover: 0 14px 40px rgba(233, 30, 99, 0.25);
+
+  /* ===== FOREST THEME COLORS ===== */
+  --forest-bg: #0b1f16;
+  --forest-panel: #122b1f;
+  --forest-surface: #132c22;
+  --forest-text: #D7E8DA;
+  --forest-text-muted: #99BFA8;
+  --forest-input: #142f24;
+  --forest-button: #22c55e;
+  --forest-button-hover: #16a34a;
+  --forest-button-text: #0f172a;
+  --forest-border: rgba(95, 166, 117, 0.24);
+  --forest-border-secondary: rgba(255, 255, 255, 0.25);
+  --forest-bubble-user: linear-gradient(135deg, #22c55e, #16a34a);
+  --forest-bubble-ai: #122b1f;
+  --forest-bubble-ai-text: #99BFA8;
+  --forest-code-bg: #1a3a2b;
+  --forest-input-placeholder: #6d9e87;
+  --forest-theme-bg: rgba(255, 255, 255, 0.08);
+  --forest-theme-border: rgba(95, 166, 117, 0.3);
+  --forest-selector-hover: rgba(34, 197, 94, 0.12);
+  --forest-selector-border: rgba(34, 197, 94, 0.35);
+  --forest-secondary-hover: rgba(34, 197, 94, 0.15);
+  --forest-button-shadow-hover: 0 14px 40px rgba(34, 197, 94, 0.3);
+
+  /* ===== LIGHT THEME COLORS ===== */
+  --light-bg: #f4f7fb;
+  --light-panel: #ffffff;
+  --light-surface: #f8fafc;
+  --light-text: #0f172a;
+  --light-text-muted: #475569;
+  --light-input: #f7f9fc;
+  --light-button: #2563EB;
+  --light-button-hover: #3b82f6;
+  --light-button-text: #ffffff;
+  --light-border: rgba(148, 163, 184, 0.35);
+  --light-border-secondary: rgba(71, 85, 105, 0.35);
+  --light-bubble-user: linear-gradient(135deg, #2563EB, #1D4ED8);
+  --light-bubble-ai: #e2e8f0;
+  --light-bubble-ai-text: #0f172a;
+  --light-code-bg: #e0e7ff;
+  --light-input-placeholder: #95a3b3;
+  --light-theme-bg: rgba(255, 255, 255, 0.08);
+  --light-theme-border: rgba(148, 163, 184, 0.35);
+  --light-selector-hover: rgba(37, 99, 235, 0.08);
+  --light-selector-border: rgba(37, 99, 235, 0.25);
+  --light-secondary-hover: rgba(148, 163, 184, 0.2);
+  --light-button-shadow-hover: 0 14px 40px rgba(37, 99, 235, 0.25);
+
+  /* ===== GLOBAL SPACING ===== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+
+  /* ===== GLOBAL BORDER RADIUS ===== */
+  --radius-xs: 6px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+  --radius-bubble: 18px;
+
+  /* ===== GLOBAL SHADOWS ===== */
+  --shadow-xs: 0 10px 24px rgba(15, 23, 42, 0.14);
+  --shadow-sm: 0 10px 24px rgba(15, 23, 42, 0.14);
+  --shadow-md: 0 18px 40px rgba(15, 23, 42, 0.35);
+  --shadow-button: 0 10px 30px rgba(37, 99, 235, 0.3);
+
+  /* ===== GLOBAL TRANSITIONS ===== */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+}

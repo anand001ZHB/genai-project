@@ -1,1 +1,27 @@
-/* You can add global styles to this file, and also import other style files */
+/* Import global color system first */
+@import './colors.css';
+
+/* Import theme definitions */
+@import './themes.css';
+
+html,
+body,
+app-root {
+  height: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  overflow: auto;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--body-bg);
+  color: var(--body-text);
+}

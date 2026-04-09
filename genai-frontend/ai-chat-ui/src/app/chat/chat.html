@@ -1,23 +1,110 @@
-<div class="chat-wrapper">
+<div class="page-shell" [ngClass]="selectedTheme">
+  <header class="app-header">
+    <div class="app-brand">
+      <div class="app-title">InterviewBot</div>
+      <div class="app-subtitle">Practice technical interviews, get feedback, improve answers, and keep learning.</div>
+    </div>
+    <div class="header-actions">
+      <div class="theme-cycler">
+        <button type="button" class="theme-nav-btn" (click)="cycleThemePrev()" title="Previous theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <div class="theme-label">{{ currentThemeName }}</div>
+        <button type="button" class="theme-nav-btn" (click)="cycleThemeNext()" title="Next theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
 
-  <div class="chat-messages">
-    <div *ngFor="let msg of messages" 
-         [ngClass]="msg.role === 'user' ? 'message user' : 'message ai'">
-
-      <div class="bubble">
-        <div [innerHTML]="msg.text"></div>
+  <main class="chat-wrapper">
+    <section class="intro-panel">
+      <div class="intro-copy">
+        <h1>Interview practice that feels real</h1>
+        <p>Choose difficulty, experience level, and topic. The bot asks a focused question, evaluates your response, rates it, explains strengths and weaknesses, rewrites the answer, and asks follow-ups.</p>
       </div>
 
-    </div>
-  </div>
+      <div class="settings-panel">
+        <label>
+          Difficulty
+          <select [(ngModel)]="level">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </label>
 
-  <div class="chat-input">
-    <input 
-      [(ngModel)]="userInput" 
-      placeholder="Ask interview question..."
-      (keydown.enter)="sendMessage()"
-    />
-    <button (click)="sendMessage()">Send</button>
-  </div>
+        <label>
+          Experience
+          <select [(ngModel)]="experience">
+            <option value="0-1 years">0-1 years</option>
+            <option value="2-4 years">2-4 years</option>
+            <option value="5+ years">5+ years</option>
+          </select>
+        </label>
 
+        <label>
+          Topic
+          <select [(ngModel)]="topic">
+            <option value="JavaScript">JavaScript</option>
+            <option value="Angular">Angular</option>
+            <option value="TypeScript">TypeScript</option>
+            <option value="React">React</option>
+            <option value="Vue">Vue</option>
+            <option value="CSS">CSS</option>
+            <option value="HTML">HTML</option>
+            <option value="Web Performance">Web Performance</option>
+            <option value="Frontend Architecture">Frontend Architecture</option>
+            <option value="Node.js">Node.js</option>
+          </select>
+        </label>
+
+        <div class="buttons-row">
+          <button class="primary" (click)="startInterview()">Start Interview</button>
+          <button class="secondary" (click)="resetSelections()">Reset</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="chat-panel">
+      <div class="chat-messages" (scroll)="checkScroll()">
+        <div *ngFor="let msg of messages" [ngClass]="msg.role === 'user' ? 'message user' : 'message ai'">
+          <div class="bubble">
+            <div [innerHTML]="msg.text"></div>
+          </div>
+        </div>
+      </div>
+
+      <button *ngIf="showScrollButton" class="scroll-to-bottom-btn" (click)="scrollToBottom()" title="Go to latest">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+
+      <div class="chat-input" *ngIf="!showRatingStep">
+        <input
+          [(ngModel)]="userInput"
+          placeholder="Answer the latest interview question here..."
+          (keydown.enter)="sendMessage()"
+        />
+        <button class="primary" (click)="sendMessage()">Send Answer</button>
+      </div>
+
+      <div class="chat-input" *ngIf="showRatingStep">
+        <input
+          [(ngModel)]="selfRating"
+          type="number"
+          min="1"
+          max="10"
+          placeholder="Enter your rating (1-10)..."
+          (keydown.enter)="submitSelfRating()"
+        />
+        <button class="primary" (click)="submitSelfRating()">Submit Rating</button>
+      </div>
+    </section>
+  </main>
 </div>
