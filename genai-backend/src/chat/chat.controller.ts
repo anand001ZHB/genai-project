@@ -12,21 +12,16 @@ export class ChatController {
     @Body('experience') experience: string,
     @Body('topic') topic: string,
     @Body('selfRating') selfRating: number,
-  ) {
+  ): Promise<any> {
     return this.chatService.startInterview({ level, experience, topic, selfRating });
   }
 
   @Post('answer')
   answerInterview(
+    @Body('sessionId') sessionId: string,
     @Body('answer') answer: string,
-    @Body('question') question: string,
-    @Body('level') level: string,
-    @Body('experience') experience: string,
-    @Body('topic') topic: string,
-    @Body('stuckAttempts') stuckAttempts: number,
-    @Body('responseSignal') responseSignal: 'normal' | 'dont_know' | 'move_on' | 'greeting',
-  ) {
-    return this.chatService.evaluateAnswer({ answer, question, level, experience, topic, stuckAttempts, responseSignal });
+  ): Promise<any> {
+    return this.chatService.evaluateAnswer({ sessionId, answer, question: '' });
   }
 
   @Post('casual')

@@ -6,6 +6,16 @@ import { marked } from 'marked';
 import { take } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
+interface InterviewSummary {
+  hasScoreData: boolean;
+  entries: number;
+  theoryAvg: number;
+  codingAvg: number;
+  scenarioAvg: number;
+  outputAvg: number;
+  overallAvg: number;
+}
+
 @Component({
   selector: 'app-chat',
   standalone: true,
@@ -30,6 +40,7 @@ export class Chat implements AfterViewChecked {
   isAnswerTurn = false;
   isAwaitingResponse = false;
   lastQuestion = '';
+  sessionId = '';
   messages: any[] = [];
   private messageIdCounter = 0;
   private pendingAnswerFocus = false;
@@ -38,14 +49,15 @@ export class Chat implements AfterViewChecked {
   selectedTheme = 'theme-dark';
   showInterviewSummary = false;
 
-  private scoreTotals = {
-    theory: 0,
-    coding: 0,
-    scenario: 0,
-    output: 0,
+  private summary: InterviewSummary = {
+    hasScoreData: false,
+    entries: 0,
+    theoryAvg: 0,
+    codingAvg: 0,
+    scenarioAvg: 0,
+    outputAvg: 0,
+    overallAvg: 0,
   };
-  private scoreEntries = 0;
-  private stuckAttemptsForCurrentQuestion = 0;
   
   private themes = [
     { class: 'theme-dark', label: 'Night' },
@@ -82,29 +94,27 @@ export class Chat implements AfterViewChecked {
   }
 
   get hasScoreData(): boolean {
-    return this.scoreEntries > 0;
+    return this.summary.hasScoreData;
   }
 
   get theoryAverage(): number {
-    return this.getSectionAverage('theory');
+    return this.summary.theoryAvg;
   }
 
   get codingAverage(): number {
-    return this.getSectionAverage('coding');
+    return this.summary.codingAvg;
   }
 
   get scenarioAverage(): number {
-    return this.getSectionAverage('scenario');
+    return this.summary.scenarioAvg;
   }
 
   get outputAverage(): number {
-    return this.getSectionAverage('output');
+    return this.summary.outputAvg;
   }
 
   get overallAverage(): number {
-    if (!this.hasScoreData) return 0;
-    const total = this.theoryAverage + this.codingAverage + this.scenarioAverage + this.outputAverage;
-    return this.roundScore(total / 4);
+    return this.summary.overallAvg;
   }
 
   get theoryWidth(): string {
@@ -148,7 +158,7 @@ export class Chat implements AfterViewChecked {
     this.isAnswerTurn = false;
     this.isAwaitingResponse = false;
     this.lastQuestion = '';
-    this.stuckAttemptsForCurrentQuestion = 0;
+    this.sessionId = '';
     this.resetAnswerInputHeight();
     this.focusRatingInput();
 
@@ -184,10 +194,12 @@ export class Chat implements AfterViewChecked {
       selfRating: rating,
     }).subscribe({
       next: (res) => {
-        const reply = res.reply || 'No response from interviewer.';
-        const aiMessage = this.createMessage('ai', marked.parse(reply) as string);
+        const message = res.message || res.reply || 'No response from interviewer.';
+        const aiMessage = this.createMessage('ai', marked.parse(message) as string);
         this.messages.push(aiMessage);
-        this.lastQuestion = this.extractQuestion(reply);
+        this.sessionId = res.sessionId || '';
+        this.lastQuestion = res.question || this.extractQuestion(message);
+        this.applySummary(res.summary);
         this.interviewStarted = true;
         this.isAwaitingResponse = false;
         this.isAnswerTurn = true;
@@ -241,112 +253,30 @@ export class Chat implements AfterViewChecked {
     return Math.round(score * 10) / 10;
   }
 
-  private getSectionAverage(section: 'theory' | 'coding' | 'scenario' | 'output'): number {
-    if (!this.hasScoreData) return 0;
-    return this.roundScore(this.scoreTotals[section] / this.scoreEntries);
-  }
-
   private resetScoreSummary() {
-    this.scoreTotals = {
-      theory: 0,
-      coding: 0,
-      scenario: 0,
-      output: 0,
+    this.summary = {
+      hasScoreData: false,
+      entries: 0,
+      theoryAvg: 0,
+      codingAvg: 0,
+      scenarioAvg: 0,
+      outputAvg: 0,
+      overallAvg: 0,
     };
-    this.scoreEntries = 0;
   }
 
-  private extractSectionRatings(reply: string): string {
-    const ratingsRegex = /Section ratings\s*\(\/10\)\s*:\s*Theory\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Coding\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Scenario\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Output\s*:\s*(10|\d(?:\.\d+)?)/i;
-    const match = reply.match(ratingsRegex);
+  private applySummary(summary: Partial<InterviewSummary> | undefined) {
+    if (!summary) return;
 
-    if (match) {
-      const theory = Number.parseFloat(match[1]);
-      const coding = Number.parseFloat(match[2]);
-      const scenario = Number.parseFloat(match[3]);
-      const output = Number.parseFloat(match[4]);
-
-      const parsedScores = [theory, coding, scenario, output];
-      const hasInvalidScore = parsedScores.some((value) => Number.isNaN(value));
-
-      if (!hasInvalidScore) {
-        this.scoreTotals.theory += Math.max(0, Math.min(10, theory));
-        this.scoreTotals.coding += Math.max(0, Math.min(10, coding));
-        this.scoreTotals.scenario += Math.max(0, Math.min(10, scenario));
-        this.scoreTotals.output += Math.max(0, Math.min(10, output));
-        this.scoreEntries += 1;
-      }
-    }
-
-    return reply
-      .replace(ratingsRegex, '')
-      .replace(/^.*Section\s*ratings.*$/gim, '')
-      .replace(/^.*Ratings\s+are\s+based\s+on.*$/gim, '')
-      .replace(/^\s*\(\s*Note\s*:\s*Ratings.*\)\s*$/gim, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-  }
-
-  private normalizeInterviewerTone(reply: string): string {
-    return reply
-      .replace(/\byour\s+message\b/gi, 'that response')
-      .replace(/\byour\s+response\s+was\b/gi, 'that was')
-      .replace(/\byou\s+said\b/gi, 'from what I heard')
-      .replace(/\blet'?s\s+focus\s+on\b/gi, 'let us focus on')
-      .replace(/\s{2,}/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-  }
-
-  private detectResponseSignal(message: string): 'normal' | 'dont_know' | 'move_on' | 'greeting' {
-    const normalized = message.toLowerCase().trim();
-    const cleaned = normalized.replace(/[^a-z\s']/g, ' ').replace(/\s+/g, ' ').trim();
-
-    const moveOnPhrases = [
-      'move ahead',
-      'move on',
-      'move forward',
-      'next question',
-      'next one',
-      'skip this',
-      'skip question',
-      'skip it',
-      'go next',
-      'proceed',
-      'lets move on',
-      "let's move on",
-      'can we move on',
-      'please move on',
-      'go to next',
-    ];
-
-    const dontKnowPhrases = [
-      "don't know",
-      'dont know',
-      'do not know',
-      'not sure',
-      'no idea',
-      'idk',
-      "can't answer",
-      'cannot answer',
-      'i am not sure',
-      "i'm not sure",
-    ];
-
-    if (moveOnPhrases.some((phrase) => normalized.includes(phrase))) {
-      return 'move_on';
-    }
-
-    if (dontKnowPhrases.some((phrase) => normalized.includes(phrase))) {
-      return 'dont_know';
-    }
-
-    const greetingOnlyRegex = /^(?:(?:hi|hello|hey|hola|good morning|good afternoon|good evening)(?:\s+(?:hi|hello|hey|there|team|all|everyone|sir|madam|mam))*)$/i;
-    if (cleaned.length > 0 && cleaned.split(' ').length <= 6 && greetingOnlyRegex.test(cleaned)) {
-      return 'greeting';
-    }
-
-    return 'normal';
+    this.summary = {
+      hasScoreData: Boolean(summary.hasScoreData),
+      entries: Number(summary.entries || 0),
+      theoryAvg: this.roundScore(Number(summary.theoryAvg || 0)),
+      codingAvg: this.roundScore(Number(summary.codingAvg || 0)),
+      scenarioAvg: this.roundScore(Number(summary.scenarioAvg || 0)),
+      outputAvg: this.roundScore(Number(summary.outputAvg || 0)),
+      overallAvg: this.roundScore(Number(summary.overallAvg || 0)),
+    };
   }
 
   onAnswerKeydown(event: KeyboardEvent) {
@@ -464,35 +394,26 @@ export class Chat implements AfterViewChecked {
     this.isAwaitingResponse = true;
     this.scrollToBottom('smooth');
 
-    const responseSignal = this.detectResponseSignal(answer);
-    if (responseSignal === 'dont_know' || responseSignal === 'move_on') {
-      this.stuckAttemptsForCurrentQuestion += 1;
-    } else {
-      this.stuckAttemptsForCurrentQuestion = 0;
-    }
-
-    const previousQuestion = this.lastQuestion;
-
     const apiUrl = this.apiBaseUrl ? `${this.apiBaseUrl}/chat/answer` : '/chat/answer';
     this.http.post<any>(apiUrl, {
+      sessionId: this.sessionId,
       answer,
-      question: this.lastQuestion,
-      level: this.level,
-      experience: this.experience,
-      topic: this.topic,
-      responseSignal,
-      stuckAttempts: this.stuckAttemptsForCurrentQuestion,
     }).subscribe({
       next: (res) => {
-        const rawReply = res.reply || 'No response from interviewer.';
-        const noRatingsReply = this.extractSectionRatings(rawReply);
-        const cleanedReply = this.normalizeInterviewerTone(noRatingsReply) || 'No response from interviewer.';
-        const aiMessage = this.createMessage('ai', marked.parse(cleanedReply) as string);
-        this.messages.push(aiMessage);
-        this.lastQuestion = this.extractQuestion(cleanedReply);
-        if (this.lastQuestion !== previousQuestion) {
-          this.stuckAttemptsForCurrentQuestion = 0;
+        if (res?.error) {
+          const aiMessage = this.createMessage('ai', res.error);
+          this.messages.push(aiMessage);
+          this.isAwaitingResponse = false;
+          this.isAnswerTurn = false;
+          this.scrollToMessageStart(aiMessage.id, 'smooth');
+          return;
         }
+
+        const message = res.message || res.reply || 'No response from interviewer.';
+        const aiMessage = this.createMessage('ai', marked.parse(message) as string);
+        this.messages.push(aiMessage);
+        this.lastQuestion = res.question || this.extractQuestion(message);
+        this.applySummary(res.summary);
         this.isAwaitingResponse = false;
         this.isAnswerTurn = true;
         this.focusAnswerInput();

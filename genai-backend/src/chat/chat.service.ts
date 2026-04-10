@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 
+type ResponseSignal = 'normal' | 'dont_know' | 'move_on' | 'greeting';
+
 interface InterviewConfig {
   level?: string;
   experience?: string;
@@ -9,14 +11,184 @@ interface InterviewConfig {
 }
 
 interface AnswerPayload extends InterviewConfig {
+  sessionId?: string;
   answer: string;
-  question: string;
+  question?: string;
   stuckAttempts?: number;
-  responseSignal?: 'normal' | 'dont_know' | 'move_on' | 'greeting';
+  responseSignal?: ResponseSignal;
+}
+
+interface SectionScores {
+  theory: number;
+  coding: number;
+  scenario: number;
+  output: number;
+}
+
+interface InterviewSession {
+  id: string;
+  config: Required<InterviewConfig>;
+  lastQuestion: string;
+  stuckAttemptsForCurrentQuestion: number;
+  scoreTotals: SectionScores;
+  scoreEntries: number;
 }
 
 @Injectable()
 export class ChatService {
+
+  private sessions = new Map<string, InterviewSession>();
+
+  private createSessionId(): string {
+    return `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  private createEmptyScores(): SectionScores {
+    return {
+      theory: 0,
+      coding: 0,
+      scenario: 0,
+      output: 0,
+    };
+  }
+
+  private roundScore(score: number): number {
+    return Math.round(score * 10) / 10;
+  }
+
+  private extractQuestion(reply: string): string {
+    const questionMatch = reply.match(/(?:Question:|Q:)([\s\S]*)/i);
+    if (questionMatch && questionMatch[1]) {
+      return questionMatch[1].trim();
+    }
+    return reply.trim();
+  }
+
+  private detectResponseSignal(message: string): ResponseSignal {
+    const normalized = (message || '').toLowerCase().trim();
+    const cleaned = normalized.replace(/[^a-z\s']/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const moveOnPhrases = [
+      'move ahead',
+      'move on',
+      'move forward',
+      'next question',
+      'next one',
+      'skip this',
+      'skip question',
+      'skip it',
+      'go next',
+      'proceed',
+      'lets move on',
+      "let's move on",
+      'can we move on',
+      'please move on',
+      'go to next',
+    ];
+
+    const dontKnowPhrases = [
+      "don't know",
+      'dont know',
+      'do not know',
+      'not sure',
+      'no idea',
+      'idk',
+      "can't answer",
+      'cannot answer',
+      'i am not sure',
+      "i'm not sure",
+    ];
+
+    if (moveOnPhrases.some((phrase) => normalized.includes(phrase))) {
+      return 'move_on';
+    }
+
+    if (dontKnowPhrases.some((phrase) => normalized.includes(phrase))) {
+      return 'dont_know';
+    }
+
+    const greetingOnlyRegex = /^(?:(?:hi|hello|hey|hola|good morning|good afternoon|good evening)(?:\s+(?:hi|hello|hey|there|team|all|everyone|sir|madam|mam))*)$/i;
+    if (cleaned.length > 0 && cleaned.split(' ').length <= 6 && greetingOnlyRegex.test(cleaned)) {
+      return 'greeting';
+    }
+
+    return 'normal';
+  }
+
+  private normalizeInterviewerTone(reply: string): string {
+    return reply
+      .replace(/\byour\s+message\b/gi, 'that response')
+      .replace(/\byour\s+response\s+was\b/gi, 'that was')
+      .replace(/\byou\s+said\b/gi, 'from what I heard')
+      .replace(/\blet'?s\s+focus\s+on\b/gi, 'let us focus on')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  private extractRatingsAndCleanReply(reply: string): { cleanedReply: string; scores: SectionScores | null } {
+    const ratingsRegex = /Section ratings\s*\(\/10\)\s*:\s*Theory\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Coding\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Scenario\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Output\s*:\s*(10|\d(?:\.\d+)?)/i;
+    const match = reply.match(ratingsRegex);
+
+    let scores: SectionScores | null = null;
+    if (match) {
+      const theory = Number.parseFloat(match[1]);
+      const coding = Number.parseFloat(match[2]);
+      const scenario = Number.parseFloat(match[3]);
+      const output = Number.parseFloat(match[4]);
+      const parsedScores = [theory, coding, scenario, output];
+      const hasInvalidScore = parsedScores.some((value) => Number.isNaN(value));
+
+      if (!hasInvalidScore) {
+        scores = {
+          theory: Math.max(0, Math.min(10, theory)),
+          coding: Math.max(0, Math.min(10, coding)),
+          scenario: Math.max(0, Math.min(10, scenario)),
+          output: Math.max(0, Math.min(10, output)),
+        };
+      }
+    }
+
+    const cleanedReply = reply
+      .replace(ratingsRegex, '')
+      .replace(/^.*Section\s*ratings.*$/gim, '')
+      .replace(/^.*Ratings\s+are\s+based\s+on.*$/gim, '')
+      .replace(/^\s*\(\s*Note\s*:\s*Ratings.*\)\s*$/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    return { cleanedReply, scores };
+  }
+
+  private getSummary(session: InterviewSession) {
+    if (session.scoreEntries <= 0) {
+      return {
+        hasScoreData: false,
+        entries: 0,
+        theoryAvg: 0,
+        codingAvg: 0,
+        scenarioAvg: 0,
+        outputAvg: 0,
+        overallAvg: 0,
+      };
+    }
+
+    const theoryAvg = this.roundScore(session.scoreTotals.theory / session.scoreEntries);
+    const codingAvg = this.roundScore(session.scoreTotals.coding / session.scoreEntries);
+    const scenarioAvg = this.roundScore(session.scoreTotals.scenario / session.scoreEntries);
+    const outputAvg = this.roundScore(session.scoreTotals.output / session.scoreEntries);
+    const overallAvg = this.roundScore((theoryAvg + codingAvg + scenarioAvg + outputAvg) / 4);
+
+    return {
+      hasScoreData: true,
+      entries: session.scoreEntries,
+      theoryAvg,
+      codingAvg,
+      scenarioAvg,
+      outputAvg,
+      overallAvg,
+    };
+  }
 
   private buildGreetingReply(question: string) {
     const greetings = [
@@ -41,10 +213,18 @@ export class ChatService {
     return `${greeting} ${transition} ${safeQuestion}`;
   }
 
-  private openai = new OpenAI({
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: 'https://api.groq.com/openai/v1',
-  });
+  private openai: OpenAI | null = null;
+
+  private getOpenAIClient(): OpenAI {
+    if (!this.openai) {
+      this.openai = new OpenAI({
+        apiKey: process.env.GROQ_API_KEY,
+        baseURL: 'https://api.groq.com/openai/v1',
+      });
+    }
+
+    return this.openai;
+  }
 
   private buildSystemPrompt() {
     return `You are an experienced technical interviewer in a realistic one-on-one interview.
@@ -71,7 +251,7 @@ Do not break character as interviewer.
     console.log('API KEY:', process.env.GROQ_API_KEY);
 
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await this.getOpenAIClient().chat.completions.create({
         model: 'llama-3.1-8b-instant',
         messages: [
           {
@@ -102,7 +282,7 @@ Do not break character as interviewer.
     console.log('Casual chat message:', message);
 
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await this.getOpenAIClient().chat.completions.create({
         model: 'llama-3.1-8b-instant',
         messages: [
           {
@@ -169,21 +349,79 @@ Tailor the question difficulty based on their self-rating:
 Keep it conversational and concise. Ask exactly ONE focused question.
 `;
 
-    return this.getAIResponse(startPrompt);
+    const result = await this.getAIResponse(startPrompt);
+    const rawReply = result.reply || 'No response from interviewer.';
+    const { cleanedReply } = this.extractRatingsAndCleanReply(rawReply);
+    const message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
+    const question = this.extractQuestion(message);
+
+    const sessionId = this.createSessionId();
+    const session: InterviewSession = {
+      id: sessionId,
+      config: {
+        level,
+        experience,
+        topic,
+        selfRating,
+      },
+      lastQuestion: question,
+      stuckAttemptsForCurrentQuestion: 0,
+      scoreTotals: this.createEmptyScores(),
+      scoreEntries: 0,
+    };
+
+    this.sessions.set(sessionId, session);
+
+    return {
+      sessionId,
+      message,
+      question,
+      meta: {
+        topic,
+        difficulty: questionDifficulty,
+      },
+      summary: this.getSummary(session),
+    };
   }
 
   async evaluateAnswer(payload: AnswerPayload) {
-    const level = payload.level || 'medium';
-    const experience = payload.experience || '0-1 years';
-    const topic = payload.topic || 'JavaScript';
-    const question = payload.question || 'Interview question';
-    const answer = payload.answer;
-    const stuckAttempts = payload.stuckAttempts || 0;
-    const responseSignal = payload.responseSignal || 'normal';
+    const answer = payload.answer || '';
+    const sessionId = payload.sessionId || '';
+    const session = this.sessions.get(sessionId);
+
+    if (!session) {
+      return {
+        error: 'Session not found. Please start a new interview.',
+      };
+    }
+
+    const level = session.config.level || 'medium';
+    const experience = session.config.experience || '0-1 years';
+    const topic = session.config.topic || 'JavaScript';
+    const question = session.lastQuestion || 'Interview question';
+    const responseSignal = this.detectResponseSignal(answer);
+
+    if (responseSignal === 'dont_know' || responseSignal === 'move_on') {
+      session.stuckAttemptsForCurrentQuestion += 1;
+    } else {
+      session.stuckAttemptsForCurrentQuestion = 0;
+    }
+
+    const stuckAttempts = session.stuckAttemptsForCurrentQuestion;
 
     if (responseSignal === 'greeting') {
+      const message = this.buildGreetingReply(question);
       return {
-        reply: this.buildGreetingReply(question),
+        sessionId,
+        message,
+        question,
+        evaluation: null,
+        progress: {
+          responseSignal,
+          questionChanged: false,
+          stuckAttempts,
+        },
+        summary: this.getSummary(session),
       };
     }
 
@@ -210,7 +448,38 @@ Respond exactly like a real interviewer:
 - Keep it concise and human.
 `;
 
-      return this.getAIResponse(moveAheadPrompt);
+      const result = await this.getAIResponse(moveAheadPrompt);
+      const rawReply = result.reply || 'No response from interviewer.';
+      const { cleanedReply, scores } = this.extractRatingsAndCleanReply(rawReply);
+      const message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
+      const nextQuestion = this.extractQuestion(message);
+      const questionChanged = nextQuestion !== session.lastQuestion;
+
+      if (scores) {
+        session.scoreTotals.theory += scores.theory;
+        session.scoreTotals.coding += scores.coding;
+        session.scoreTotals.scenario += scores.scenario;
+        session.scoreTotals.output += scores.output;
+        session.scoreEntries += 1;
+      }
+
+      if (questionChanged) {
+        session.lastQuestion = nextQuestion;
+        session.stuckAttemptsForCurrentQuestion = 0;
+      }
+
+      return {
+        sessionId,
+        message,
+        question: nextQuestion,
+        evaluation: scores,
+        progress: {
+          responseSignal,
+          questionChanged,
+          stuckAttempts: session.stuckAttemptsForCurrentQuestion,
+        },
+        summary: this.getSummary(session),
+      };
     }
 
     const prompt = `You are conducting an interview turn.
@@ -252,6 +521,37 @@ Critical constraints:
 - End with one clear interviewer question.
 `;
 
-    return this.getAIResponse(prompt);
+    const result = await this.getAIResponse(prompt);
+    const rawReply = result.reply || 'No response from interviewer.';
+    const { cleanedReply, scores } = this.extractRatingsAndCleanReply(rawReply);
+    const message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
+    const nextQuestion = this.extractQuestion(message);
+    const questionChanged = nextQuestion !== session.lastQuestion;
+
+    if (scores) {
+      session.scoreTotals.theory += scores.theory;
+      session.scoreTotals.coding += scores.coding;
+      session.scoreTotals.scenario += scores.scenario;
+      session.scoreTotals.output += scores.output;
+      session.scoreEntries += 1;
+    }
+
+    if (questionChanged) {
+      session.lastQuestion = nextQuestion;
+      session.stuckAttemptsForCurrentQuestion = 0;
+    }
+
+    return {
+      sessionId,
+      message,
+      question: nextQuestion,
+      evaluation: scores,
+      progress: {
+        responseSignal,
+        questionChanged,
+        stuckAttempts: session.stuckAttemptsForCurrentQuestion,
+      },
+      summary: this.getSummary(session),
+    };
   }
 }
