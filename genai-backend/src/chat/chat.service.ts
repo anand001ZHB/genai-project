@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 
-type ResponseSignal = 'normal' | 'dont_know' | 'move_on' | 'greeting';
+type ResponseSignal = 'normal' | 'dont_know' | 'move_on' | 'greeting' | 'end_interview';
 
 interface InterviewConfig {
   level?: string;
@@ -56,6 +56,106 @@ export class ChatService {
     return Math.round(score * 10) / 10;
   }
 
+  private isSubstantiveAnswer(answer: string): boolean {
+    const normalized = (answer || '').trim();
+    if (!normalized) return false;
+
+    const tokens = normalized.split(/\s+/).filter(Boolean);
+    return tokens.length >= 6;
+  }
+
+  private levenshteinDistance(a: string, b: string): number {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+
+    const matrix: number[][] = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+
+    for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
+    for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
+
+    for (let i = 1; i <= a.length; i += 1) {
+      for (let j = 1; j <= b.length; j += 1) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost,
+        );
+      }
+    }
+
+    return matrix[a.length][b.length];
+  }
+
+  private isApproxWord(token: string, target: string, maxDistance = 2): boolean {
+    if (!token || !target) return false;
+    if (token === target) return true;
+    if (Math.abs(token.length - target.length) > maxDistance) return false;
+
+    return this.levenshteinDistance(token, target) <= maxDistance;
+  }
+
+  private hasFuzzyEndInterviewIntent(cleaned: string): boolean {
+    const tokens = cleaned.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return false;
+
+    const endWords = ['end', 'stop', 'close', 'finish', 'quit', 'terminate'];
+    const interviewWords = ['interview', 'session'];
+    const overWords = ['over', 'done', 'ended', 'finished'];
+
+    const hasEndWord = tokens.some((token) => endWords.some((word) => this.isApproxWord(token, word, 2)));
+    const hasInterviewWord = tokens.some((token) => interviewWords.some((word) => this.isApproxWord(token, word, 2)));
+    const hasOverWord = tokens.some((token) => overWords.some((word) => this.isApproxWord(token, word, 2)));
+
+    return (hasEndWord && hasInterviewWord) || (hasInterviewWord && hasOverWord);
+  }
+
+  private hasUncertaintyCue(answer: string): boolean {
+    const normalized = (answer || '')
+      .toLowerCase()
+      .replace(/[’`]/g, "'")
+      .trim();
+
+    if (!normalized) return false;
+
+    const cues = [
+      "don't know",
+      'dont know',
+      'do not know',
+      'not sure',
+      'no idea',
+      'no clue',
+      'idk',
+      "can't answer",
+      'cannot answer',
+      "don't remember",
+      'cannot recall',
+      'unsure',
+      'uncertain',
+      'unable to answer',
+      'not able to answer',
+    ];
+
+    if (cues.some((cue) => normalized.includes(cue))) {
+      return true;
+    }
+
+    const cuePatterns = [
+      /\bdon'?t\s+know\b/i,
+      /\bdo\s+not\s+know\b/i,
+      /\bnot\s+sure\b/i,
+      /\bno\s+(?:idea|clue)\b/i,
+      /\bidk\b/i,
+      /\b(can(?:not|'t)\s+answer)\b/i,
+      /\b(can(?:not|'t)\s+recall)\b/i,
+      /\b(?:unsure|uncertain)\b/i,
+      /\b(?:unable|not\s+able)\s+to\s+answer\b/i,
+    ];
+
+    return cuePatterns.some((pattern) => pattern.test(normalized));
+  }
+
   private extractQuestion(reply: string): string {
     const questionMatch = reply.match(/(?:Question:|Q:)([\s\S]*)/i);
     if (questionMatch && questionMatch[1]) {
@@ -65,8 +165,46 @@ export class ChatService {
   }
 
   private detectResponseSignal(message: string): ResponseSignal {
-    const normalized = (message || '').toLowerCase().trim();
+    const normalized = (message || '')
+      .toLowerCase()
+      .replace(/[’`]/g, "'")
+      .trim();
     const cleaned = normalized.replace(/[^a-z\s']/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const endInterviewPhrases = [
+      'end interview',
+      'end the interview',
+      'stop interview',
+      'stop the interview',
+      'finish interview',
+      'finish the interview',
+      'i want to end interview',
+      'i want to end the interview',
+      'let us end interview',
+      "let's end interview",
+      'interview is over',
+      'that is all for now',
+      'we can stop here',
+    ];
+    if (endInterviewPhrases.some((phrase) => normalized.includes(phrase))) {
+      return 'end_interview';
+    }
+
+    const directEndIntentPatterns = [
+      /\b(end|stop|finish|close|quit|terminate)\b\s+(?:this\s+|the\s+)?\b(interview|session)\b/i,
+      /\b(interview|session)\b\s+(?:is\s+)?\b(over|done|finished|ended)\b/i,
+      /\b(can\s+you|could\s+you|please|i\s+want\s+to|let\s+us|let's)\b[\w\s']{0,30}\b(end|stop|finish|close)\b/i,
+      /\b(end|stop|finish)\b\s+now\b/i,
+    ];
+
+    if (directEndIntentPatterns.some((pattern) => pattern.test(cleaned))) {
+      return 'end_interview';
+    }
+
+    if (this.hasFuzzyEndInterviewIntent(cleaned)) {
+      return 'end_interview';
+    }
+
 
     const moveOnPhrases = [
       'move ahead',
@@ -92,6 +230,16 @@ export class ChatService {
       'do not know',
       'not sure',
       'no idea',
+      'no clue',
+      'not aware',
+      'unsure',
+      'dunno',
+      "don't have idea",
+      'dont have idea',
+      "don't have any idea",
+      'dont have any idea',
+      "don't remember",
+      'cannot recall',
       'idk',
       "can't answer",
       'cannot answer',
@@ -99,11 +247,26 @@ export class ChatService {
       "i'm not sure",
     ];
 
+    const dontKnowPatterns = [
+      /\bdon'?t\s+know\b/i,
+      /\bdo\s+not\s+know\b/i,
+      /\bnot\s+sure\b/i,
+      /\bno\s+(?:idea|clue)\b/i,
+      /\bidk\b/i,
+      /\b(can(?:not|'t)\s+answer)\b/i,
+      /\b(can(?:not|'t)\s+recall)\b/i,
+      /\b(?:unsure|uncertain)\b/i,
+    ];
+
     if (moveOnPhrases.some((phrase) => normalized.includes(phrase))) {
       return 'move_on';
     }
 
     if (dontKnowPhrases.some((phrase) => normalized.includes(phrase))) {
+      return 'dont_know';
+    }
+
+    if (dontKnowPatterns.some((pattern) => pattern.test(cleaned))) {
       return 'dont_know';
     }
 
@@ -117,6 +280,10 @@ export class ChatService {
 
   private normalizeInterviewerTone(reply: string): string {
     return reply
+      .replace(/^\s*\(\s*candidate\s+did\s+not\s+provide\s+an\s+answer\s+for\s+the\s+given\s+topic\.?\s*\)\s*$/gim, '')
+      .replace(/^\s*\(\s*candidate\s+did\s+not\s+provide\s+an\s+answer[^)]*\)\s*$/gim, '')
+      .replace(/^\s*\(\s*no\s+answer\s+provided[^)]*\)\s*$/gim, '')
+      .replace(/^\s*\(\s*no\s+response\s+provided[^)]*\)\s*$/gim, '')
       .replace(/\byour\s+message\b/gi, 'that response')
       .replace(/\byour\s+response\s+was\b/gi, 'that was')
       .replace(/\byou\s+said\b/gi, 'from what I heard')
@@ -384,6 +551,32 @@ Keep it conversational and concise. Ask exactly ONE focused question.
     };
   }
 
+  async endInterview(sessionId?: string) {
+    const normalizedSessionId = (sessionId || '').trim();
+    if (!normalizedSessionId) {
+      return {
+        error: 'Session not found. Please start a new interview.',
+      };
+    }
+
+    const session = this.sessions.get(normalizedSessionId);
+    if (!session) {
+      return {
+        error: 'Session not found. Please start a new interview.',
+      };
+    }
+
+    const summary = this.getSummary(session);
+    this.sessions.delete(normalizedSessionId);
+
+    return {
+      sessionId: normalizedSessionId,
+      ended: true,
+      message: 'Okay, ending the interview. Here is your summary.',
+      summary,
+    };
+  }
+
   async evaluateAnswer(payload: AnswerPayload) {
     const answer = payload.answer || '';
     const sessionId = payload.sessionId || '';
@@ -400,6 +593,26 @@ Keep it conversational and concise. Ask exactly ONE focused question.
     const topic = session.config.topic || 'JavaScript';
     const question = session.lastQuestion || 'Interview question';
     const responseSignal = this.detectResponseSignal(answer);
+    const shouldCaptureScore = responseSignal === 'normal' && this.isSubstantiveAnswer(answer) && !this.hasUncertaintyCue(answer);
+
+    if (responseSignal === 'end_interview') {
+      const summary = this.getSummary(session);
+      this.sessions.delete(sessionId);
+
+      return {
+        sessionId,
+        ended: true,
+        message: 'Okay, ending the interview. Here is your summary.',
+        question: '',
+        evaluation: null,
+        progress: {
+          responseSignal,
+          questionChanged: false,
+          stuckAttempts: session.stuckAttemptsForCurrentQuestion,
+        },
+        summary,
+      };
+    }
 
     if (responseSignal === 'dont_know' || responseSignal === 'move_on') {
       session.stuckAttemptsForCurrentQuestion += 1;
@@ -455,7 +668,7 @@ Respond exactly like a real interviewer:
       const nextQuestion = this.extractQuestion(message);
       const questionChanged = nextQuestion !== session.lastQuestion;
 
-      if (scores) {
+      if (scores && shouldCaptureScore) {
         session.scoreTotals.theory += scores.theory;
         session.scoreTotals.coding += scores.coding;
         session.scoreTotals.scenario += scores.scenario;
@@ -472,7 +685,7 @@ Respond exactly like a real interviewer:
         sessionId,
         message,
         question: nextQuestion,
-        evaluation: scores,
+        evaluation: shouldCaptureScore ? scores : null,
         progress: {
           responseSignal,
           questionChanged,
@@ -528,7 +741,7 @@ Critical constraints:
     const nextQuestion = this.extractQuestion(message);
     const questionChanged = nextQuestion !== session.lastQuestion;
 
-    if (scores) {
+    if (scores && shouldCaptureScore) {
       session.scoreTotals.theory += scores.theory;
       session.scoreTotals.coding += scores.coding;
       session.scoreTotals.scenario += scores.scenario;
@@ -545,7 +758,7 @@ Critical constraints:
       sessionId,
       message,
       question: nextQuestion,
-      evaluation: scores,
+      evaluation: shouldCaptureScore ? scores : null,
       progress: {
         responseSignal,
         questionChanged,

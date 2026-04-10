@@ -14,6 +14,7 @@ describe('ChatController', () => {
           useValue: {
             startInterview: jest.fn(),
             evaluateAnswer: jest.fn(),
+            endInterview: jest.fn(),
             casualChat: jest.fn(),
             getAIResponse: jest.fn(),
           },

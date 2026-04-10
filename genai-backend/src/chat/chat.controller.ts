@@ -24,6 +24,13 @@ export class ChatController {
     return this.chatService.evaluateAnswer({ sessionId, answer, question: '' });
   }
 
+  @Post('end')
+  endInterview(
+    @Body('sessionId') sessionId: string,
+  ): Promise<any> {
+    return this.chatService.endInterview(sessionId);
+  }
+
   @Post('casual')
   casualChat(@Body('message') message: string) {
     return this.chatService.casualChat(message);

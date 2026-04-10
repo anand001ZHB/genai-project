@@ -145,6 +145,45 @@
   box-shadow: none;
 }
 
+.summary-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  background: rgba(2, 6, 23, 0.62);
+}
+
+.summary-modal-card {
+  width: min(520px, 100%);
+  background: var(--surface);
+  border: var(--chat-border-width) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-xl);
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.summary-modal-card h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.summary-end-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.summary-modal-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-sm);
+}
+
 .rating-input::-webkit-outer-spin-button,
 .rating-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -153,6 +192,40 @@
 .rating-input[type='number'] {
   appearance: textfield;
   -moz-appearance: textfield;
+}
+
+.rating-input.rating-input-invalid {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.35);
+}
+
+.rating-input.rating-input-valid {
+  border-color: #34d399 !important;
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.35);
+}
+
+.chat-input.rating-step {
+  display: block;
+}
+
+.rating-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.rating-input-row .rating-input {
+  flex: 1;
+}
+
+.rating-input-row .primary {
+  min-width: 132px;
+}
+
+.rating-validation-text {
+  margin: var(--spacing-sm) 0 0;
+  color: #fda4af;
+  font-size: 0.88rem;
 }
 
 .bubble pre {
@@ -167,6 +240,25 @@
 
 .bubble p {
   margin: 0 0 var(--chat-bubble-paragraph-gap);
+}
+
+.bubble .rating-scale-list {
+  margin-top: var(--spacing-md);
+  display: grid;
+  gap: 8px;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .rating-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rating-input-row .primary {
+    width: 100%;
+  }
 }
 
 .score-summary-panel {

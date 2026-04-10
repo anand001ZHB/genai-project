@@ -29,12 +29,14 @@ export class Chat implements AfterViewChecked {
   @ViewChild('ratingInput') ratingInput?: ElementRef<HTMLInputElement>;
 
   private apiBaseUrl = ((environment as any).apiBaseUrl || (environment as any).apiUrl || '').replace(/\/+$/, '') || '';
+  private readonly ratingRangeValidationMessage = 'You can respond only in between 1 to 10.';
 
   userInput = '';
   level = 'easy';
   experience = '0-1 years';
   topic = 'JavaScript';
   selfRating = '';
+  ratingValidationMessage = '';
   showRatingStep = false;
   interviewStarted = false;
   isAnswerTurn = false;
@@ -47,7 +49,8 @@ export class Chat implements AfterViewChecked {
   private pendingRatingFocus = false;
   showScrollButton = false;
   selectedTheme = 'theme-dark';
-  showInterviewSummary = false;
+  showEndSummaryModal = false;
+  endNotice = '';
 
   private summary: InterviewSummary = {
     hasScoreData: false,
@@ -87,6 +90,27 @@ export class Chat implements AfterViewChecked {
 
   get isResetDisabled(): boolean {
     return this.isStartDisabled || !this.hasSelectionChanges;
+  }
+
+  get isRatingValid(): boolean {
+    if (!this.selfRating) return false;
+    if (!/^\d+$/.test(this.selfRating.trim())) return false;
+
+    const rating = Number.parseInt(this.selfRating, 10);
+    return !Number.isNaN(rating) && rating >= 1 && rating <= 10;
+  }
+
+  get isRatingInvalid(): boolean {
+    return (!!this.selfRating && !this.isRatingValid) || !!this.ratingValidationMessage;
+  }
+
+  get showRatingValidState(): boolean {
+    return !!this.selfRating && this.isRatingValid && !this.ratingValidationMessage;
+  }
+
+  get isSubmitRatingDisabled(): boolean {
+    const hasAnyInput = !!this.selfRating && this.selfRating.trim().length > 0;
+    return this.isAwaitingResponse || (hasAnyInput && !this.isRatingValid);
   }
 
   get currentThemeName(): string {
@@ -149,16 +173,18 @@ export class Chat implements AfterViewChecked {
 
   startInterview() {
     this.messages = [];
-    this.showInterviewSummary = false;
+    this.showEndSummaryModal = false;
     this.resetScoreSummary();
     this.showRatingStep = true;
     this.selfRating = '';
+    this.ratingValidationMessage = '';
     this.userInput = '';
     this.interviewStarted = false;
     this.isAnswerTurn = false;
     this.isAwaitingResponse = false;
     this.lastQuestion = '';
     this.sessionId = '';
+    this.endNotice = '';
     this.resetAnswerInputHeight();
     this.focusRatingInput();
 
@@ -166,7 +192,12 @@ export class Chat implements AfterViewChecked {
     this.messages.push(
       this.createMessage(
         'ai',
-        'Great! Before we start, I\'d like to know how you rate yourself on a scale of 1-10 on the topic of <strong>' + this.topic + '</strong>. This will help me tailor the questions to your level.<br/><br/>(1 = beginner, 5 = intermediate, 10 = expert)'
+        'Great! Before we start, I\'d like to know how you rate yourself on a scale of 1-10 on the topic of <strong>' + this.topic + '</strong>. This will help me tailor the questions to your level.' +
+        '<div class="rating-scale-list">' +
+        '<div>1 = Beginner</div>' +
+        '<div>5 = Intermediate</div>' +
+        '<div>10 = Expert</div>' +
+        '</div>'
       )
     );
   }
@@ -176,9 +207,11 @@ export class Chat implements AfterViewChecked {
     
     const rating = parseInt(this.selfRating);
     if (rating < 1 || rating > 10) {
-      alert('Please enter a rating between 1 and 10');
+      this.ratingValidationMessage = this.ratingRangeValidationMessage;
       return;
     }
+
+    this.ratingValidationMessage = '';
 
     this.messages.push(this.createMessage('user', 'I rate myself as ' + rating + ' out of 10'));
     this.showRatingStep = false;
@@ -217,6 +250,44 @@ export class Chat implements AfterViewChecked {
     });
   }
 
+  onSelfRatingInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input) return;
+
+    const digitsOnly = (input.value || '').replace(/\D/g, '');
+    if (!digitsOnly) {
+      this.selfRating = '';
+      input.value = '';
+      this.ratingValidationMessage = '';
+      return;
+    }
+
+    const numeric = Number.parseInt(digitsOnly, 10);
+    if (Number.isNaN(numeric)) {
+      this.selfRating = '';
+      input.value = '';
+      this.ratingValidationMessage = this.ratingRangeValidationMessage;
+      return;
+    }
+
+    this.selfRating = digitsOnly;
+    input.value = this.selfRating;
+
+    if (numeric < 1 || numeric > 10) {
+      this.ratingValidationMessage = this.ratingRangeValidationMessage;
+      return;
+    }
+
+    this.ratingValidationMessage = '';
+  }
+
+  onSelfRatingKeydown(event: KeyboardEvent) {
+    const blockedKeys = ['.', ',', '-', '+', 'e', 'E'];
+    if (blockedKeys.includes(event.key)) {
+      event.preventDefault();
+    }
+  }
+
   resetSelections() {
     this.level = 'easy';
     this.experience = '0-1 years';
@@ -226,11 +297,92 @@ export class Chat implements AfterViewChecked {
   endInterview() {
     if (!this.interviewStarted) return;
 
+    this.isAwaitingResponse = true;
+    this.isAnswerTurn = false;
+
+    const apiUrl = this.apiBaseUrl ? `${this.apiBaseUrl}/chat/end` : '/chat/end';
+    this.http.post<any>(apiUrl, {
+      sessionId: this.sessionId,
+    }).subscribe({
+      next: (res) => {
+        if (res?.summary) {
+          this.applySummary(res.summary);
+        }
+
+        const endMessage = 'Okay, ending the interview. Here is your summary.';
+        const aiMessage = this.createMessage('ai', marked.parse(endMessage) as string);
+        this.messages.push(aiMessage);
+        this.endNotice = endMessage;
+
+        this.interviewStarted = false;
+        this.isAnswerTurn = false;
+        this.isAwaitingResponse = false;
+        this.showRatingStep = false;
+        this.showEndSummaryModal = true;
+        this.sessionId = '';
+        this.lastQuestion = '';
+        this.scrollToMessageStart(aiMessage.id, 'smooth');
+      },
+      error: () => {
+        this.endNotice = 'Okay, ending the interview. Here is your summary.';
+        this.interviewStarted = false;
+        this.isAnswerTurn = false;
+        this.isAwaitingResponse = false;
+        this.showRatingStep = false;
+        this.showEndSummaryModal = true;
+        this.sessionId = '';
+        this.lastQuestion = '';
+      }
+    });
+  }
+
+  practiceMore() {
+    this.showEndSummaryModal = false;
+    this.showRatingStep = false;
     this.interviewStarted = false;
     this.isAnswerTurn = false;
     this.isAwaitingResponse = false;
-    this.showRatingStep = false;
-    this.showInterviewSummary = true;
+    this.lastQuestion = '';
+    this.sessionId = '';
+    this.userInput = '';
+    this.selfRating = '';
+    this.messages = [];
+    this.messageIdCounter = 0;
+    this.endNotice = '';
+    this.resetSelections();
+    this.resetScoreSummary();
+    this.resetAnswerInputHeight();
+  }
+
+  private isEndInterviewIntent(message: string): boolean {
+    const normalized = (message || '').toLowerCase().trim();
+    const cleaned = normalized.replace(/[^a-z\s']/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (!cleaned) return false;
+
+    const explicitPhrases = [
+      'end interview',
+      'end the interview',
+      'stop interview',
+      'stop the interview',
+      'finish interview',
+      'finish the interview',
+      'interview is over',
+      'interview is done',
+      'that is all',
+    ];
+
+    if (explicitPhrases.some((phrase) => cleaned.includes(phrase))) {
+      return true;
+    }
+
+    const patterns = [
+      /\b(end|stop|finish|close|quit|terminate)\b\s+(?:this\s+|the\s+)?\b(interview|session)\b/i,
+      /\b(end|stop|finish)\b\s+now\b/i,
+      /\b(interview|session)\b\s+(?:is\s+)?\b(over|done|finished|ended)\b/i,
+    ];
+
+    return patterns.some((pattern) => pattern.test(cleaned));
   }
 
   private createMessage(role: 'ai' | 'user', text: string) {
@@ -394,6 +546,12 @@ export class Chat implements AfterViewChecked {
     this.isAwaitingResponse = true;
     this.scrollToBottom('smooth');
 
+    if (this.isEndInterviewIntent(answer)) {
+      this.userInput = '';
+      this.endInterview();
+      return;
+    }
+
     const apiUrl = this.apiBaseUrl ? `${this.apiBaseUrl}/chat/answer` : '/chat/answer';
     this.http.post<any>(apiUrl, {
       sessionId: this.sessionId,
@@ -414,6 +572,19 @@ export class Chat implements AfterViewChecked {
         this.messages.push(aiMessage);
         this.lastQuestion = res.question || this.extractQuestion(message);
         this.applySummary(res.summary);
+
+        if (res?.ended) {
+          this.endNotice = 'Okay, ending the interview. Here is your summary.';
+          this.interviewStarted = false;
+          this.isAwaitingResponse = false;
+          this.isAnswerTurn = false;
+          this.showEndSummaryModal = true;
+          this.sessionId = '';
+          this.lastQuestion = '';
+          this.scrollToMessageStart(aiMessage.id, 'smooth');
+          return;
+        }
+
         this.isAwaitingResponse = false;
         this.isAnswerTurn = true;
         this.focusAnswerInput();

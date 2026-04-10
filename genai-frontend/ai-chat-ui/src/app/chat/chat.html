@@ -108,51 +108,6 @@
         </div>
       </div>
 
-      <section *ngIf="showInterviewSummary" class="score-summary-panel">
-        <h4>Interview Score Summary</h4>
-
-        <div *ngIf="hasScoreData; else noScoreData" class="score-grid">
-          <div class="score-item">
-            <div class="score-row-head">
-              <span>Theory</span>
-              <strong>{{ theoryAverage }}/10</strong>
-            </div>
-            <div class="score-bar"><span [style.width]="theoryWidth"></span></div>
-          </div>
-
-          <div class="score-item">
-            <div class="score-row-head">
-              <span>Coding</span>
-              <strong>{{ codingAverage }}/10</strong>
-            </div>
-            <div class="score-bar"><span [style.width]="codingWidth"></span></div>
-          </div>
-
-          <div class="score-item">
-            <div class="score-row-head">
-              <span>Scenario</span>
-              <strong>{{ scenarioAverage }}/10</strong>
-            </div>
-            <div class="score-bar"><span [style.width]="scenarioWidth"></span></div>
-          </div>
-
-          <div class="score-item">
-            <div class="score-row-head">
-              <span>Output</span>
-              <strong>{{ outputAverage }}/10</strong>
-            </div>
-            <div class="score-bar"><span [style.width]="outputWidth"></span></div>
-          </div>
-
-          <div class="overall-score">
-            Overall: <strong>{{ overallAverage }}/10</strong>
-          </div>
-        </div>
-
-        <ng-template #noScoreData>
-          <p class="no-scores-copy">No section scores were captured yet. Try answering a few interview questions before ending.</p>
-        </ng-template>
-      </section>
     </section>
 
     <section class="chat-panel">
@@ -185,20 +140,84 @@
           ></textarea>
         </div>
         <button class="primary" [disabled]="!canAnswerNow" (click)="sendMessage()">Send</button>
+        <button class="secondary" [disabled]="!interviewStarted || isAwaitingResponse" (click)="endInterview()">End Interview</button>
       </div>
 
-      <div class="chat-input" *ngIf="showRatingStep">
-        <input
-          #ratingInput
-          class="rating-input"
-          [(ngModel)]="selfRating"
-          type="number"
-          min="1"
-          max="10"
-          placeholder="Enter your rating (1-10)..."
-          (keydown.enter)="submitSelfRating()"
-        />
-        <button class="primary" (click)="submitSelfRating()">Submit Rating</button>
+      <div class="chat-input rating-step" *ngIf="showRatingStep">
+        <div class="rating-input-row">
+          <input
+            #ratingInput
+            class="rating-input"
+            [class.rating-input-invalid]="isRatingInvalid"
+            [class.rating-input-valid]="showRatingValidState"
+            [attr.aria-invalid]="isRatingInvalid"
+            [(ngModel)]="selfRating"
+            type="number"
+            min="1"
+            max="10"
+            step="1"
+            inputmode="numeric"
+            placeholder="Enter your rating (1-10)..."
+            (input)="onSelfRatingInput($event)"
+            (keydown)="onSelfRatingKeydown($event)"
+            (keydown.enter)="submitSelfRating()"
+          />
+          <button class="primary" [disabled]="isSubmitRatingDisabled" (click)="submitSelfRating()">Submit Rating</button>
+        </div>
+        <p class="rating-validation-text" *ngIf="ratingValidationMessage">{{ ratingValidationMessage }}</p>
+      </div>
+    </section>
+
+    <section *ngIf="showEndSummaryModal" class="summary-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+      <div class="summary-modal-card">
+        <h3 id="summaryTitle">Interview Feedback Ratings</h3>
+        <p *ngIf="endNotice" class="summary-end-copy">{{ endNotice }}</p>
+
+        <div *ngIf="hasScoreData; else noModalScoreData" class="score-grid">
+          <div class="score-item">
+            <div class="score-row-head">
+              <span>Concept Clarity</span>
+              <strong>{{ theoryAverage }}/10</strong>
+            </div>
+            <div class="score-bar"><span [style.width]="theoryWidth"></span></div>
+          </div>
+
+          <div class="score-item">
+            <div class="score-row-head">
+              <span>Implementation Quality</span>
+              <strong>{{ codingAverage }}/10</strong>
+            </div>
+            <div class="score-bar"><span [style.width]="codingWidth"></span></div>
+          </div>
+
+          <div class="score-item">
+            <div class="score-row-head">
+              <span>Problem Solving</span>
+              <strong>{{ scenarioAverage }}/10</strong>
+            </div>
+            <div class="score-bar"><span [style.width]="scenarioWidth"></span></div>
+          </div>
+
+          <div class="score-item">
+            <div class="score-row-head">
+              <span>Result Accuracy</span>
+              <strong>{{ outputAverage }}/10</strong>
+            </div>
+            <div class="score-bar"><span [style.width]="outputWidth"></span></div>
+          </div>
+
+          <div class="overall-score">
+            Overall Score: <strong>{{ overallAverage }}/10</strong>
+          </div>
+        </div>
+
+        <ng-template #noModalScoreData>
+          <p class="no-scores-copy">No section scores were captured yet. Try answering a few interview questions before ending.</p>
+        </ng-template>
+
+        <div class="summary-modal-actions">
+          <button class="primary" (click)="practiceMore()">Practice more</button>
+        </div>
       </div>
     </section>
   </main>
