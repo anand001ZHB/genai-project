@@ -203,4 +203,67 @@
   /* ===== GLOBAL TRANSITIONS ===== */
   --transition-fast: 0.2s ease;
   --transition-normal: 0.3s ease;
+
+  /* ===== GLOBAL DISABLED CONTROL COLORS ===== */
+  --control-disabled-bg: rgba(100, 116, 139, 0.45);
+  --control-disabled-text: rgba(226, 232, 240, 0.85);
+  --control-disabled-border: rgba(100, 116, 139, 0.55);
+
+  /* ===== CHAT/UI LAYOUT TOKENS ===== */
+  --chat-theme-nav-size: 32px;
+  --chat-theme-label-min-width: 70px;
+  --chat-theme-label-font-size: 0.9rem;
+  --chat-header-offset-desktop: 88px;
+  --chat-header-offset-mobile: 120px;
+  --chat-welcome-max-width: 760px;
+  --chat-welcome-start-min-width: 160px;
+  --chat-welcome-title-line-height: 1.1;
+  --chat-welcome-body-font-size: 1rem;
+  --chat-welcome-body-line-height: 1.8;
+  --chat-sidebar-width: 280px;
+  --chat-app-title-font-size: 1.5rem;
+  --chat-app-subtitle-font-size: 0.95rem;
+  --chat-intro-title-font-size: 1.4rem;
+  --chat-intro-title-line-height: 1.2;
+  --chat-intro-copy-font-size: 0.95rem;
+  --chat-intro-copy-line-height: 1.6;
+  --chat-settings-helper-font-size: 0.9rem;
+  --chat-settings-helper-line-height: 1.35;
+  --chat-settings-label-font-size: 0.88rem;
+  --chat-mobile-helper-font-size: 0.88rem;
+  --chat-mobile-helper-line-height: 1.4;
+  --chat-button-font-size: 0.92rem;
+  --chat-copy-margin-bottom: 10px;
+  --chat-settings-margin-top: 8px;
+  --chat-settings-footer-height: 104px;
+  --chat-settings-helper-margin-bottom: 8px;
+  --chat-settings-field-gap: 8px;
+  --chat-settings-label-gap: 6px;
+  --chat-settings-divider-margin-bottom: 8px;
+  --chat-messages-gap: 14px;
+  --chat-messages-right-gutter-adjust: 6px;
+  --chat-messages-bottom-padding: 180px;
+  --chat-textarea-min-height: 54px;
+  --chat-textarea-max-height: 220px;
+  --chat-send-btn-min-width: 120px;
+  --chat-scroll-btn-size: 56px;
+  --chat-scroll-btn-bottom: 16px;
+  --chat-scrollbar-width: 8px;
+  --chat-border-width: 1px;
+  --chat-theme-label-letter-spacing: 0.3px;
+  --chat-bubble-paragraph-gap: 10px;
+  --chat-bubble-max-width: 70%;
+  --chat-bubble-font-size: 0.94rem;
+  --chat-bubble-line-height: 1.65;
+  --chat-textarea-line-height: 1.45;
+  --chat-z-input-sticky: 2;
+  --chat-z-scroll-btn: 100;
+
+  /* ===== CHAT/UI COLOR TOKENS ===== */
+  --chat-secondary-hover-bg: rgba(148, 163, 184, 0.24);
+  --chat-focus-ring: rgba(59, 130, 246, 0.25);
+  --chat-input-disabled-bg: rgba(100, 116, 139, 0.2);
+  --chat-input-disabled-border: rgba(100, 116, 139, 0.45);
+  --chat-input-disabled-text: rgba(148, 163, 184, 0.9);
+  --chat-scrollbar-thumb: rgba(148, 163, 184, 0.45);
 }
