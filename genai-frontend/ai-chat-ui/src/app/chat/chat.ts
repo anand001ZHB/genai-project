@@ -287,6 +287,17 @@ export class Chat implements AfterViewChecked {
       .trim();
   }
 
+  private normalizeInterviewerTone(reply: string): string {
+    return reply
+      .replace(/\byour\s+message\b/gi, 'that response')
+      .replace(/\byour\s+response\s+was\b/gi, 'that was')
+      .replace(/\byou\s+said\b/gi, 'from what I heard')
+      .replace(/\blet'?s\s+focus\s+on\b/gi, 'let us focus on')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   private detectResponseSignal(message: string): 'normal' | 'dont_know' | 'move_on' | 'greeting' {
     const normalized = message.toLowerCase().trim();
     const cleaned = normalized.replace(/[^a-z\s']/g, ' ').replace(/\s+/g, ' ').trim();
@@ -474,7 +485,8 @@ export class Chat implements AfterViewChecked {
     }).subscribe({
       next: (res) => {
         const rawReply = res.reply || 'No response from interviewer.';
-        const cleanedReply = this.extractSectionRatings(rawReply) || 'No response from interviewer.';
+        const noRatingsReply = this.extractSectionRatings(rawReply);
+        const cleanedReply = this.normalizeInterviewerTone(noRatingsReply) || 'No response from interviewer.';
         const aiMessage = this.createMessage('ai', marked.parse(cleanedReply) as string);
         this.messages.push(aiMessage);
         this.lastQuestion = this.extractQuestion(cleanedReply);
