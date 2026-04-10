@@ -11,10 +11,35 @@ interface InterviewConfig {
 interface AnswerPayload extends InterviewConfig {
   answer: string;
   question: string;
+  stuckAttempts?: number;
+  responseSignal?: 'normal' | 'dont_know' | 'move_on' | 'greeting';
 }
 
 @Injectable()
 export class ChatService {
+
+  private buildGreetingReply(question: string) {
+    const greetings = [
+      'Hey, good to hear from you.',
+      'Hi, glad you are here.',
+      'Hello, nice to meet you.',
+      'Hey there, great to connect.',
+    ];
+
+    const transitions = [
+      'Let us continue with this one:',
+      'Let us pick up where we left off:',
+      'We can jump right back in:',
+      'Let us keep going with this question:',
+    ];
+
+    const safeQuestion = (question || '').trim() || 'Can you walk me through your approach?';
+    const seed = Date.now();
+    const greeting = greetings[seed % greetings.length];
+    const transition = transitions[(seed + 1) % transitions.length];
+
+    return `${greeting} ${transition} ${safeQuestion}`;
+  }
 
   private openai = new OpenAI({
     apiKey: process.env.GROQ_API_KEY,
@@ -22,22 +47,22 @@ export class ChatService {
   });
 
   private buildSystemPrompt() {
-    return `You are an experienced technical interviewer conducting a one-on-one interview. Your tone should be warm, direct, and professional.
+    return `You are an experienced technical interviewer in a realistic one-on-one interview.
 
-When asking questions:
-- Be clear and conversational
-- Ask focused, practical questions
-- Wait for the candidate's response
+Style rules:
+- Sound human, calm, and professional
+- Keep replies short (2-4 sentences usually)
+- No long explanations, no teaching mode, no model-answer dumps
+- No bullet lists unless explicitly requested
+- Avoid scripted/meta wording. Do not say phrases like "your message was" or "let's steer back".
 
-When evaluating answers:
-- Talk directly to the candidate using "you"
-- Be specific about what you liked
-- Point out gaps naturally, not in a list
-- Suggest improvements in a friendly way
-- Give a rating (1-10) briefly
-- Ask a follow-up question that helps them think deeper
+Interview rules:
+- Ask one focused question at a time
+- After a candidate answer, give brief natural feedback and move to the next/follow-up question
+- If the candidate response is off-topic, too vague, or casual, respond politely and guide them back to the current question
+- If they ask to repeat or clarify the question, rephrase it briefly and continue
 
-Keep responses concise and natural. Avoid bullet points unless necessary. Sound like a real person, not a robot.
+Do not break character as interviewer.
 `;
   }
 
@@ -125,7 +150,7 @@ Keep responses concise and natural. Avoid bullet points unless necessary. Sound 
 
     const questionDifficulty = selfRating <= 3 ? 'beginner' : selfRating <= 6 ? 'intermediate' : 'advanced';
 
-    const startPrompt = `Start a technical interview with a candidate.
+    const startPrompt = `Start a realistic technical interview with a candidate.
 
 Setup:
 - Interview difficulty: ${level}
@@ -134,14 +159,14 @@ Setup:
 - Candidate's self-rated skill level: ${selfRating}/10 (${difficultyMap[selfRating] || 'intermediate'})
 - Adjust question difficulty to ${questionDifficulty}
 
-Greet them warmly using their self-rating to personalize the interview. Briefly explain the interview format (you'll ask questions, they answer, you give feedback on their response). Then ask your first question on ${topic}.
+Greet them naturally in one short sentence using their self-rating context. Then immediately ask the first interview question on ${topic}.
 
 Tailor the question difficulty based on their self-rating:
 - If they rated 1-3: Ask a foundational question
 - If they rated 4-6: Ask an intermediate question
 - If they rated 7-10: Ask a challenging question
 
-Keep it conversational and friendly. Ask ONE focused question.
+Keep it conversational and concise. Ask exactly ONE focused question.
 `;
 
     return this.getAIResponse(startPrompt);
@@ -153,55 +178,78 @@ Keep it conversational and friendly. Ask ONE focused question.
     const topic = payload.topic || 'JavaScript';
     const question = payload.question || 'Interview question';
     const answer = payload.answer;
+    const stuckAttempts = payload.stuckAttempts || 0;
+    const responseSignal = payload.responseSignal || 'normal';
 
-    const isShortAnswer = answer.trim().split(' ').length < 10;
-
-    if (isShortAnswer) {
-      // If answer is too short, provide the correct answer with detailed explanations
-      const prompt = `A candidate was asked this interview question and gave a very brief answer. Your job is to teach them the proper answer.
-
-Question asked:
-"${question}"
-
-Their short answer:
-"${answer}"
-
-Candidate details: ${level} difficulty, ${experience} experience, ${topic}
-
-Please do the following:
-1. Acknowledge their attempt
-2. Provide the correct answer in clear, simple terms
-3. Explain WHY this is the correct approach (explain your thinking process)
-4. Give a practical real-world example to make it concrete
-5. Explain it in a second way using an analogy or different perspective
-6. Point out common misconceptions people have
-7. Ask them to try explaining it back to you in their own words
-
-Make it educational and encouraging. Use "you" when talking to them. Format it naturally, not as a numbered list.
-`;
-      return this.getAIResponse(prompt);
-    } else {
-      // For longer answers, do normal evaluation
-      const prompt = `You are interviewing a candidate. Here's their response to evaluate.
-
-Question asked:
-"${question}"
-
-Their answer:
-"${answer}"
-
-Candidate details: ${level} difficulty, ${experience} experience, ${topic}
-
-Now evaluate their answer in a conversational way, as if you're talking to them directly. Include:
-1. What they did well (be specific)
-2. What could be improved or what's missing
-3. A brief rating (1-10)
-4. How to answer better (in 1-2 sentences max)
-5. A follow-up question to dig deeper
-
-Keep it natural and conversational. Use "you" when talking to them. Avoid numbered lists or too much formatting. Sound like you're having a real conversation.
-`;
-      return this.getAIResponse(prompt);
+    if (responseSignal === 'greeting') {
+      return {
+        reply: this.buildGreetingReply(question),
+      };
     }
+
+    if (responseSignal === 'move_on' || (responseSignal === 'dont_know' && stuckAttempts >= 2)) {
+      const moveAheadPrompt = `The candidate wants to move ahead in the interview.
+
+Current context:
+- Topic: ${topic}
+- Difficulty: ${level}
+- Experience: ${experience}
+
+Previous question (do not repeat or rephrase this):
+"${question}"
+
+Candidate message:
+"${answer}"
+
+Respond exactly like a real interviewer:
+- Acknowledge briefly in one natural sentence.
+- Ask ONE new question immediately.
+- The new question must be different from the previous one.
+- Do not ask the candidate to retry the previous question.
+- Do not provide hints or long explanations.
+- Keep it concise and human.
+`;
+
+      return this.getAIResponse(moveAheadPrompt);
+    }
+
+    const prompt = `You are conducting an interview turn.
+
+Current interview context:
+- Topic: ${topic}
+- Difficulty: ${level}
+- Experience: ${experience}
+
+Current question asked to candidate:
+"${question}"
+
+Candidate's latest message:
+"${answer}"
+
+Detected candidate intent:
+- responseSignal: ${responseSignal}
+- stuckAttemptsOnCurrentQuestion: ${stuckAttempts}
+
+Respond like a real interviewer using these rules:
+- If the candidate gave a relevant answer: give short feedback (1-2 sentences) and ask one follow-up or next question.
+- If responseSignal is greeting: greet back naturally in one short sentence, then continue the interview by asking the current question.
+- If the candidate message is off-topic/casual/small-talk: acknowledge briefly and return to the current question in a natural way.
+- If the candidate asks for clarification/repeat: rephrase the same question briefly.
+- If responseSignal is move_on: acknowledge briefly and move to a new question immediately (no hint).
+- If responseSignal is dont_know and stuckAttemptsOnCurrentQuestion is 1: give one tiny hint (one sentence max) and ask them to try once.
+- If responseSignal is dont_know and stuckAttemptsOnCurrentQuestion is 2 or more: acknowledge and move to a new question immediately without another hint.
+- For relevant answers, also include section-wise ratings out of 10 in one compact line using this exact label format:
+  Section ratings (/10): Theory: X | Coding: X | Scenario: X | Output: X
+- Derive the four section ratings from the candidate's latest response quality (0-10 each).
+
+Critical constraints:
+- Do NOT provide full answers or long explanations.
+- Do NOT produce long educational content.
+- Keep it concise and human (3-5 short sentences including the ratings line).
+- Do NOT quote the candidate's exact message unless they asked you to repeat it.
+- End with one clear interviewer question.
+`;
+
+    return this.getAIResponse(prompt);
   }
 }

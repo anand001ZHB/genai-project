@@ -107,6 +107,52 @@
           </div>
         </div>
       </div>
+
+      <section *ngIf="showInterviewSummary" class="score-summary-panel">
+        <h4>Interview Score Summary</h4>
+
+        <div *ngIf="hasScoreData; else noScoreData" class="score-grid">
+          <div class="score-item">
+            <div class="score-row-head">
+              <span>Theory</span>
+              <strong>{{ theoryAverage }}/10</strong>
+            </div>
+            <div class="score-bar"><span [style.width]="theoryWidth"></span></div>
+          </div>
+
+          <div class="score-item">
+            <div class="score-row-head">
+              <span>Coding</span>
+              <strong>{{ codingAverage }}/10</strong>
+            </div>
+            <div class="score-bar"><span [style.width]="codingWidth"></span></div>
+          </div>
+
+          <div class="score-item">
+            <div class="score-row-head">
+              <span>Scenario</span>
+              <strong>{{ scenarioAverage }}/10</strong>
+            </div>
+            <div class="score-bar"><span [style.width]="scenarioWidth"></span></div>
+          </div>
+
+          <div class="score-item">
+            <div class="score-row-head">
+              <span>Output</span>
+              <strong>{{ outputAverage }}/10</strong>
+            </div>
+            <div class="score-bar"><span [style.width]="outputWidth"></span></div>
+          </div>
+
+          <div class="overall-score">
+            Overall: <strong>{{ overallAverage }}/10</strong>
+          </div>
+        </div>
+
+        <ng-template #noScoreData>
+          <p class="no-scores-copy">No section scores were captured yet. Try answering a few interview questions before ending.</p>
+        </ng-template>
+      </section>
     </section>
 
     <section class="chat-panel">
@@ -131,14 +177,14 @@
           <textarea
             #answerInput
             [(ngModel)]="userInput"
-            placeholder="Answer the latest interview question here..."
+            placeholder="Type your response..."
             [disabled]="!canAnswerNow"
             (input)="autoResizeAnswer($event)"
             (keydown)="onAnswerKeydown($event)"
             rows="2"
           ></textarea>
         </div>
-        <button class="primary" [disabled]="!canAnswerNow" (click)="sendMessage()">Send Answer</button>
+        <button class="primary" [disabled]="!canAnswerNow" (click)="sendMessage()">Send</button>
       </div>
 
       <div class="chat-input" *ngIf="showRatingStep">

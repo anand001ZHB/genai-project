@@ -23,8 +23,10 @@ export class ChatController {
     @Body('level') level: string,
     @Body('experience') experience: string,
     @Body('topic') topic: string,
+    @Body('stuckAttempts') stuckAttempts: number,
+    @Body('responseSignal') responseSignal: 'normal' | 'dont_know' | 'move_on' | 'greeting',
   ) {
-    return this.chatService.evaluateAnswer({ answer, question, level, experience, topic });
+    return this.chatService.evaluateAnswer({ answer, question, level, experience, topic, stuckAttempts, responseSignal });
   }
 
   @Post('casual')

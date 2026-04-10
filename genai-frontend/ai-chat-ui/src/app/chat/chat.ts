@@ -36,6 +36,16 @@ export class Chat implements AfterViewChecked {
   private pendingRatingFocus = false;
   showScrollButton = false;
   selectedTheme = 'theme-dark';
+  showInterviewSummary = false;
+
+  private scoreTotals = {
+    theory: 0,
+    coding: 0,
+    scenario: 0,
+    output: 0,
+  };
+  private scoreEntries = 0;
+  private stuckAttemptsForCurrentQuestion = 0;
   
   private themes = [
     { class: 'theme-dark', label: 'Night' },
@@ -71,6 +81,48 @@ export class Chat implements AfterViewChecked {
     return this.themes[this.currentThemeIndex]?.label || 'Night';
   }
 
+  get hasScoreData(): boolean {
+    return this.scoreEntries > 0;
+  }
+
+  get theoryAverage(): number {
+    return this.getSectionAverage('theory');
+  }
+
+  get codingAverage(): number {
+    return this.getSectionAverage('coding');
+  }
+
+  get scenarioAverage(): number {
+    return this.getSectionAverage('scenario');
+  }
+
+  get outputAverage(): number {
+    return this.getSectionAverage('output');
+  }
+
+  get overallAverage(): number {
+    if (!this.hasScoreData) return 0;
+    const total = this.theoryAverage + this.codingAverage + this.scenarioAverage + this.outputAverage;
+    return this.roundScore(total / 4);
+  }
+
+  get theoryWidth(): string {
+    return `${Math.max(0, Math.min(100, this.theoryAverage * 10))}%`;
+  }
+
+  get codingWidth(): string {
+    return `${Math.max(0, Math.min(100, this.codingAverage * 10))}%`;
+  }
+
+  get scenarioWidth(): string {
+    return `${Math.max(0, Math.min(100, this.scenarioAverage * 10))}%`;
+  }
+
+  get outputWidth(): string {
+    return `${Math.max(0, Math.min(100, this.outputAverage * 10))}%`;
+  }
+
   enterPlatform() {
     this.showWelcomeScreen = false;
   }
@@ -87,6 +139,8 @@ export class Chat implements AfterViewChecked {
 
   startInterview() {
     this.messages = [];
+    this.showInterviewSummary = false;
+    this.resetScoreSummary();
     this.showRatingStep = true;
     this.selfRating = '';
     this.userInput = '';
@@ -94,6 +148,7 @@ export class Chat implements AfterViewChecked {
     this.isAnswerTurn = false;
     this.isAwaitingResponse = false;
     this.lastQuestion = '';
+    this.stuckAttemptsForCurrentQuestion = 0;
     this.resetAnswerInputHeight();
     this.focusRatingInput();
 
@@ -156,6 +211,16 @@ export class Chat implements AfterViewChecked {
     this.topic = 'JavaScript';
   }
 
+  endInterview() {
+    if (!this.interviewStarted) return;
+
+    this.interviewStarted = false;
+    this.isAnswerTurn = false;
+    this.isAwaitingResponse = false;
+    this.showRatingStep = false;
+    this.showInterviewSummary = true;
+  }
+
   private createMessage(role: 'ai' | 'user', text: string) {
     return {
       id: ++this.messageIdCounter,
@@ -172,10 +237,105 @@ export class Chat implements AfterViewChecked {
     return reply.trim();
   }
 
-  isCasualMessage(message: string): boolean {
-    const casual = ['hi', 'hello', 'hey', 'thanks', 'thank you', 'ok', 'okay', 'yes', 'no', 'sure', 'got it', 'understood', 'cool', 'nice', 'good', 'bad', 'great', 'wow', 'hmm', 'wait', 'what', 'why', 'how', 'who', 'where', 'when'];
-    const lowerMsg = message.toLowerCase().trim();
-    return casual.includes(lowerMsg) || lowerMsg.length < 5;
+  private roundScore(score: number): number {
+    return Math.round(score * 10) / 10;
+  }
+
+  private getSectionAverage(section: 'theory' | 'coding' | 'scenario' | 'output'): number {
+    if (!this.hasScoreData) return 0;
+    return this.roundScore(this.scoreTotals[section] / this.scoreEntries);
+  }
+
+  private resetScoreSummary() {
+    this.scoreTotals = {
+      theory: 0,
+      coding: 0,
+      scenario: 0,
+      output: 0,
+    };
+    this.scoreEntries = 0;
+  }
+
+  private extractSectionRatings(reply: string): string {
+    const ratingsRegex = /Section ratings\s*\(\/10\)\s*:\s*Theory\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Coding\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Scenario\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Output\s*:\s*(10|\d(?:\.\d+)?)/i;
+    const match = reply.match(ratingsRegex);
+
+    if (match) {
+      const theory = Number.parseFloat(match[1]);
+      const coding = Number.parseFloat(match[2]);
+      const scenario = Number.parseFloat(match[3]);
+      const output = Number.parseFloat(match[4]);
+
+      const parsedScores = [theory, coding, scenario, output];
+      const hasInvalidScore = parsedScores.some((value) => Number.isNaN(value));
+
+      if (!hasInvalidScore) {
+        this.scoreTotals.theory += Math.max(0, Math.min(10, theory));
+        this.scoreTotals.coding += Math.max(0, Math.min(10, coding));
+        this.scoreTotals.scenario += Math.max(0, Math.min(10, scenario));
+        this.scoreTotals.output += Math.max(0, Math.min(10, output));
+        this.scoreEntries += 1;
+      }
+    }
+
+    return reply
+      .replace(ratingsRegex, '')
+      .replace(/^.*Section\s*ratings.*$/gim, '')
+      .replace(/^.*Ratings\s+are\s+based\s+on.*$/gim, '')
+      .replace(/^\s*\(\s*Note\s*:\s*Ratings.*\)\s*$/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  private detectResponseSignal(message: string): 'normal' | 'dont_know' | 'move_on' | 'greeting' {
+    const normalized = message.toLowerCase().trim();
+    const cleaned = normalized.replace(/[^a-z\s']/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const moveOnPhrases = [
+      'move ahead',
+      'move on',
+      'move forward',
+      'next question',
+      'next one',
+      'skip this',
+      'skip question',
+      'skip it',
+      'go next',
+      'proceed',
+      'lets move on',
+      "let's move on",
+      'can we move on',
+      'please move on',
+      'go to next',
+    ];
+
+    const dontKnowPhrases = [
+      "don't know",
+      'dont know',
+      'do not know',
+      'not sure',
+      'no idea',
+      'idk',
+      "can't answer",
+      'cannot answer',
+      'i am not sure',
+      "i'm not sure",
+    ];
+
+    if (moveOnPhrases.some((phrase) => normalized.includes(phrase))) {
+      return 'move_on';
+    }
+
+    if (dontKnowPhrases.some((phrase) => normalized.includes(phrase))) {
+      return 'dont_know';
+    }
+
+    const greetingOnlyRegex = /^(?:(?:hi|hello|hey|hola|good morning|good afternoon|good evening)(?:\s+(?:hi|hello|hey|there|team|all|everyone|sir|madam|mam))*)$/i;
+    if (cleaned.length > 0 && cleaned.split(' ').length <= 6 && greetingOnlyRegex.test(cleaned)) {
+      return 'greeting';
+    }
+
+    return 'normal';
   }
 
   onAnswerKeydown(event: KeyboardEvent) {
@@ -293,61 +453,49 @@ export class Chat implements AfterViewChecked {
     this.isAwaitingResponse = true;
     this.scrollToBottom('smooth');
 
-    // Check if this is a casual message or a full answer
-    if (this.isCasualMessage(answer)) {
-      // Send to casual chat endpoint
-      const apiUrl = this.apiBaseUrl ? `${this.apiBaseUrl}/chat/casual` : '/chat/casual';
-      this.http.post<any>(apiUrl, { message: answer }).subscribe({
-        next: (res) => {
-          const reply = res.reply || 'Got it!';
-          const aiMessage = this.createMessage('ai', marked.parse(reply) as string);
-          this.messages.push(aiMessage);
-          this.isAwaitingResponse = false;
-          this.isAnswerTurn = true;
-          this.focusAnswerInput();
-          this.scrollToMessageStart(aiMessage.id, 'smooth');
-        },
-        error: (err) => {
-          console.error('API error:', err);
-          const aiMessage = this.createMessage('ai', 'Sorry, something went wrong.');
-          this.messages.push(aiMessage);
-          this.isAwaitingResponse = false;
-          this.isAnswerTurn = true;
-          this.focusAnswerInput();
-          this.scrollToMessageStart(aiMessage.id, 'smooth');
-        }
-      });
+    const responseSignal = this.detectResponseSignal(answer);
+    if (responseSignal === 'dont_know' || responseSignal === 'move_on') {
+      this.stuckAttemptsForCurrentQuestion += 1;
     } else {
-      // Send to interview answer evaluation
-      const apiUrl = this.apiBaseUrl ? `${this.apiBaseUrl}/chat/answer` : '/chat/answer';
-      this.http.post<any>(apiUrl, {
-        answer,
-        question: this.lastQuestion,
-        level: this.level,
-        experience: this.experience,
-        topic: this.topic,
-      }).subscribe({
-        next: (res) => {
-          const reply = res.reply || 'No response from interviewer.';
-          const aiMessage = this.createMessage('ai', marked.parse(reply) as string);
-          this.messages.push(aiMessage);
-          this.lastQuestion = this.extractQuestion(reply);
-          this.isAwaitingResponse = false;
-          this.isAnswerTurn = true;
-          this.focusAnswerInput();
-          this.scrollToMessageStart(aiMessage.id, 'smooth');
-        },
-        error: (err) => {
-          console.error('API error:', err);
-          const aiMessage = this.createMessage('ai', 'Error evaluating answer. Please try again.');
-          this.messages.push(aiMessage);
-          this.isAwaitingResponse = false;
-          this.isAnswerTurn = true;
-          this.focusAnswerInput();
-          this.scrollToMessageStart(aiMessage.id, 'smooth');
-        }
-      });
+      this.stuckAttemptsForCurrentQuestion = 0;
     }
+
+    const previousQuestion = this.lastQuestion;
+
+    const apiUrl = this.apiBaseUrl ? `${this.apiBaseUrl}/chat/answer` : '/chat/answer';
+    this.http.post<any>(apiUrl, {
+      answer,
+      question: this.lastQuestion,
+      level: this.level,
+      experience: this.experience,
+      topic: this.topic,
+      responseSignal,
+      stuckAttempts: this.stuckAttemptsForCurrentQuestion,
+    }).subscribe({
+      next: (res) => {
+        const rawReply = res.reply || 'No response from interviewer.';
+        const cleanedReply = this.extractSectionRatings(rawReply) || 'No response from interviewer.';
+        const aiMessage = this.createMessage('ai', marked.parse(cleanedReply) as string);
+        this.messages.push(aiMessage);
+        this.lastQuestion = this.extractQuestion(cleanedReply);
+        if (this.lastQuestion !== previousQuestion) {
+          this.stuckAttemptsForCurrentQuestion = 0;
+        }
+        this.isAwaitingResponse = false;
+        this.isAnswerTurn = true;
+        this.focusAnswerInput();
+        this.scrollToMessageStart(aiMessage.id, 'smooth');
+      },
+      error: (err) => {
+        console.error('API error:', err);
+        const aiMessage = this.createMessage('ai', 'Error evaluating answer. Please try again.');
+        this.messages.push(aiMessage);
+        this.isAwaitingResponse = false;
+        this.isAnswerTurn = true;
+        this.focusAnswerInput();
+        this.scrollToMessageStart(aiMessage.id, 'smooth');
+      }
+    });
   }
 
   ngAfterViewChecked() {

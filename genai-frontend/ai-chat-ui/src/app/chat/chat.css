@@ -169,6 +169,61 @@
   margin: 0 0 var(--chat-bubble-paragraph-gap);
 }
 
+.score-summary-panel {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  border: var(--chat-border-width) solid var(--border);
+  background: var(--surface);
+}
+
+.score-summary-panel h4 {
+  margin: 0 0 var(--spacing-md);
+}
+
+.score-grid {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.score-item {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.score-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.score-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 72%, transparent);
+  overflow: hidden;
+}
+
+.score-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--button) 78%, #ffffff 0%), var(--button));
+}
+
+.overall-score {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: var(--chat-border-width) dashed var(--border);
+  font-size: 1rem;
+}
+
+.no-scores-copy {
+  margin: 0;
+  color: var(--muted);
+}
+
 .scroll-to-bottom-btn {
   position: absolute;
   bottom: var(--chat-scroll-btn-bottom);
