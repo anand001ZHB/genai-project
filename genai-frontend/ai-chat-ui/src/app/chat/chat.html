@@ -37,6 +37,9 @@
       </div>
 
       <div class="settings-panel mt-xl">
+        <p class="settings-helper-text">Choose the required dropdown options to begin your mock interview.</p>
+
+        <div class="settings-fields">
         <label>
           Difficulty
           <select [(ngModel)]="level">
@@ -68,42 +71,81 @@
             <option value="Web Performance">Web Performance</option>
             <option value="Frontend Architecture">Frontend Architecture</option>
             <option value="Node.js">Node.js</option>
+            <option value="Express.js">Express.js</option>
+            <option value="NestJS">NestJS</option>
+            <option value="REST APIs">REST APIs</option>
+            <option value="GraphQL">GraphQL</option>
+            <option value="SQL">SQL</option>
+            <option value="PostgreSQL">PostgreSQL</option>
+            <option value="MongoDB">MongoDB</option>
+            <option value="System Design">System Design</option>
+            <option value="Java">Java</option>
+            <option value="Spring Boot">Spring Boot</option>
+            <option value="Hibernate">Hibernate</option>
+            <option value="Microservices (Java)">Microservices (Java)</option>
+            <option value="C#">C#</option>
+            <option value=".NET">.NET</option>
+            <option value="ASP.NET Core">ASP.NET Core</option>
+            <option value="Entity Framework Core">Entity Framework Core</option>
+            <option value="LINQ">LINQ</option>
+            <option value="Python">Python</option>
+            <option value="Pandas">Pandas</option>
+            <option value="NumPy">NumPy</option>
+            <option value="Data Analysis">Data Analysis</option>
+            <option value="Data Visualization">Data Visualization</option>
+            <option value="Statistics">Statistics</option>
+            <option value="Machine Learning">Machine Learning</option>
+            <option value="Deep Learning">Deep Learning</option>
           </select>
         </label>
 
-        <div class="buttons-row">
-          <button class="primary" (click)="startInterview()">Start Interview</button>
-          <button class="secondary" (click)="resetSelections()">Reset</button>
+        </div>
+
+        <div class="settings-footer">
+          <div class="buttons-row">
+            <button class="primary" (click)="startInterview()">Start Interview</button>
+            <button class="secondary" (click)="resetSelections()">Reset</button>
+          </div>
         </div>
       </div>
     </section>
 
     <section class="chat-panel">
-      <div class="chat-messages" (scroll)="checkScroll()">
-        <div *ngFor="let msg of messages" [ngClass]="msg.role === 'user' ? 'message user' : 'message ai'">
-          <div class="bubble">
-            <div [innerHTML]="msg.text"></div>
+      <div class="chat-messages-shell">
+        <div class="chat-messages" (scroll)="checkScroll()">
+          <div *ngFor="let msg of messages" [ngClass]="msg.role === 'user' ? 'message user' : 'message ai'" class="message" [attr.data-message-id]="msg.id">
+            <div class="bubble">
+              <div [innerHTML]="msg.text"></div>
+            </div>
           </div>
         </div>
+
+        <button *ngIf="showScrollButton" class="scroll-to-bottom-btn" (click)="scrollToBottom()" title="Go to latest">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
       </div>
 
-      <button *ngIf="showScrollButton" class="scroll-to-bottom-btn" (click)="scrollToBottom()" title="Go to latest">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
-      </button>
-
       <div class="chat-input" *ngIf="!showRatingStep">
-        <input
-          [(ngModel)]="userInput"
-          placeholder="Answer the latest interview question here..."
-          (keydown.enter)="sendMessage()"
-        />
-        <button class="primary" (click)="sendMessage()">Send Answer</button>
+        <div class="chat-answer-field" [class.answer-enabled]="canAnswerNow" [class.answer-disabled]="!canAnswerNow">
+          <textarea
+            #answerInput
+            [(ngModel)]="userInput"
+            placeholder="Answer the latest interview question here..."
+            [disabled]="!canAnswerNow"
+            (input)="autoResizeAnswer($event)"
+            (keydown)="onAnswerKeydown($event)"
+            rows="2"
+          ></textarea>
+        </div>
+        <button class="primary" [disabled]="!canAnswerNow" (click)="sendMessage()">Send Answer</button>
       </div>
 
       <div class="chat-input" *ngIf="showRatingStep">
         <input
+          #ratingInput
+          class="rating-input"
           [(ngModel)]="selfRating"
           type="number"
           min="1"

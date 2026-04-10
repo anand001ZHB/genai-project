@@ -1,5 +1,5 @@
 export const environment = {
   production: false,
-  apiBaseUrl: 'https://humble-garbanzo-jw94xq7wxvq2p7v6-3000.app.github.dev', // Use this for local development with GitHub Codespaces
+  apiBaseUrl: 'https://urban-space-broccoli-496gxwv9x4v3qrw9-3000.app.github.dev', // Use this for local development with GitHub Codespaces
   // apiBaseUrl: 'http://localhost:3000', // Use this for local development
 };

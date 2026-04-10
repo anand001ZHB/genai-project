@@ -1,4 +1,4 @@
-import { Component, AfterViewChecked } from '@angular/core';
+import { Component, AfterViewChecked, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -14,6 +14,9 @@ import { environment } from '../../environments/environment';
 })
 export class Chat implements AfterViewChecked {
 
+  @ViewChild('answerInput') answerInput?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('ratingInput') ratingInput?: ElementRef<HTMLInputElement>;
+
   private apiBaseUrl = ((environment as any).apiBaseUrl || (environment as any).apiUrl || '').replace(/\/+$/, '') || '';
 
   userInput = '';
@@ -23,8 +26,13 @@ export class Chat implements AfterViewChecked {
   selfRating = '';
   showRatingStep = false;
   interviewStarted = false;
+  isAnswerTurn = false;
+  isAwaitingResponse = false;
   lastQuestion = '';
   messages: any[] = [];
+  private messageIdCounter = 0;
+  private pendingAnswerFocus = false;
+  private pendingRatingFocus = false;
   showScrollButton = false;
   selectedTheme = 'theme-dark';
   
@@ -41,6 +49,10 @@ export class Chat implements AfterViewChecked {
   showWelcomeScreen = true;
 
   constructor(private http: HttpClient) { }
+
+  get canAnswerNow(): boolean {
+    return this.interviewStarted && this.isAnswerTurn && !this.isAwaitingResponse && !this.showRatingStep;
+  }
 
   get currentThemeName(): string {
     return this.themes[this.currentThemeIndex]?.label || 'Night';
@@ -66,13 +78,19 @@ export class Chat implements AfterViewChecked {
     this.selfRating = '';
     this.userInput = '';
     this.interviewStarted = false;
+    this.isAnswerTurn = false;
+    this.isAwaitingResponse = false;
     this.lastQuestion = '';
+    this.resetAnswerInputHeight();
+    this.focusRatingInput();
 
     // Ask for self-rating first
-    this.messages.push({ 
-      role: 'ai', 
-      text: 'Great! Before we start, I\'d like to know how you rate yourself on a scale of 1-10 on the topic of <strong>' + this.topic + '</strong>. This will help me tailor the questions to your level.<br/><br/>(1 = beginner, 5 = intermediate, 10 = expert)' 
-    });
+    this.messages.push(
+      this.createMessage(
+        'ai',
+        'Great! Before we start, I\'d like to know how you rate yourself on a scale of 1-10 on the topic of <strong>' + this.topic + '</strong>. This will help me tailor the questions to your level.<br/><br/>(1 = beginner, 5 = intermediate, 10 = expert)'
+      )
+    );
   }
 
   submitSelfRating() {
@@ -84,8 +102,10 @@ export class Chat implements AfterViewChecked {
       return;
     }
 
-    this.messages.push({ role: 'user', text: 'I rate myself as ' + rating + ' out of 10' });
+    this.messages.push(this.createMessage('user', 'I rate myself as ' + rating + ' out of 10'));
     this.showRatingStep = false;
+    this.isAwaitingResponse = true;
+    this.isAnswerTurn = false;
 
     const apiUrl = this.apiBaseUrl ? `${this.apiBaseUrl}/chat/start` : '/chat/start';
 
@@ -97,13 +117,22 @@ export class Chat implements AfterViewChecked {
     }).subscribe({
       next: (res) => {
         const reply = res.reply || 'No response from interviewer.';
-        this.messages.push({ role: 'ai', text: marked.parse(reply) });
+        const aiMessage = this.createMessage('ai', marked.parse(reply) as string);
+        this.messages.push(aiMessage);
         this.lastQuestion = this.extractQuestion(reply);
         this.interviewStarted = true;
+        this.isAwaitingResponse = false;
+        this.isAnswerTurn = true;
+        this.focusAnswerInput();
+        this.scrollToMessageStart(aiMessage.id, 'smooth');
       },
       error: (err) => {
         console.error('API error:', err);
-        this.messages.push({ role: 'ai', text: 'Unable to start the interview. Please try again.' });
+        const aiMessage = this.createMessage('ai', 'Unable to start the interview. Please try again.');
+        this.messages.push(aiMessage);
+        this.isAwaitingResponse = false;
+        this.isAnswerTurn = false;
+        this.scrollToMessageStart(aiMessage.id, 'smooth');
       }
     });
   }
@@ -112,6 +141,14 @@ export class Chat implements AfterViewChecked {
     this.level = 'easy';
     this.experience = '0-1 years';
     this.topic = 'JavaScript';
+  }
+
+  private createMessage(role: 'ai' | 'user', text: string) {
+    return {
+      id: ++this.messageIdCounter,
+      role,
+      text,
+    };
   }
 
   extractQuestion(reply: string) {
@@ -128,16 +165,104 @@ export class Chat implements AfterViewChecked {
     return casual.includes(lowerMsg) || lowerMsg.length < 5;
   }
 
+  onAnswerKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Enter') return;
+
+    // GPT-like behavior: Enter sends, Shift+Enter inserts newline.
+    if (!event.shiftKey) {
+      event.preventDefault();
+      this.sendMessage();
+    }
+  }
+
+  autoResizeAnswer(event: Event) {
+    const textarea = event.target as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const maxHeight = 220;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  }
+
+  resetAnswerInputHeight() {
+    const textarea = this.answerInput?.nativeElement;
+    if (!textarea) return;
+
+    textarea.style.height = '';
+    textarea.style.overflowY = 'hidden';
+  }
+
+  private focusAnswerInput() {
+    this.pendingAnswerFocus = true;
+
+    const textarea = this.answerInput?.nativeElement;
+    if (!textarea) return;
+
+    setTimeout(() => {
+      textarea.focus();
+      const end = textarea.value.length;
+      textarea.setSelectionRange(end, end);
+      this.pendingAnswerFocus = false;
+    }, 0);
+  }
+
+  private focusRatingInput() {
+    this.pendingRatingFocus = true;
+
+    const input = this.ratingInput?.nativeElement;
+    if (!input) return;
+
+    setTimeout(() => {
+      input.focus();
+      const end = input.value.length;
+      input.setSelectionRange(end, end);
+      this.pendingRatingFocus = false;
+    }, 0);
+  }
+
+  private getChatContainer(): HTMLElement | null {
+    return document.querySelector('.chat-messages') as HTMLElement | null;
+  }
+
+  private scrollToMessageStart(messageId: number, behavior: ScrollBehavior = 'smooth', attempts = 6) {
+    const container = this.getChatContainer();
+    if (!container) return;
+
+    setTimeout(() => {
+      const target = container.querySelector(`.message[data-message-id="${messageId}"]`) as HTMLElement | null;
+
+      if (!target) {
+        if (attempts > 0) {
+          this.scrollToMessageStart(messageId, behavior, attempts - 1);
+        } else {
+          this.scrollToBottom(behavior);
+        }
+        return;
+      }
+
+      const topOffset = target.offsetTop - 24;
+      container.scrollTo({
+        top: Math.max(0, topOffset),
+        behavior,
+      });
+    }, 0);
+  }
+
   sendMessage() {
-    if (!this.userInput.trim()) return;
+    if (!this.userInput.trim() || !this.canAnswerNow) return;
     if (!this.interviewStarted) {
       this.startInterview();
       return;
     }
 
     const answer = this.userInput;
-    this.messages.push({ role: 'user', text: answer });
+    this.messages.push(this.createMessage('user', answer));
     this.userInput = '';
+    this.resetAnswerInputHeight();
+    this.isAnswerTurn = false;
+    this.isAwaitingResponse = true;
+    this.scrollToBottom('smooth');
 
     // Check if this is a casual message or a full answer
     if (this.isCasualMessage(answer)) {
@@ -146,11 +271,21 @@ export class Chat implements AfterViewChecked {
       this.http.post<any>(apiUrl, { message: answer }).subscribe({
         next: (res) => {
           const reply = res.reply || 'Got it!';
-          this.messages.push({ role: 'ai', text: marked.parse(reply) });
+          const aiMessage = this.createMessage('ai', marked.parse(reply) as string);
+          this.messages.push(aiMessage);
+          this.isAwaitingResponse = false;
+          this.isAnswerTurn = true;
+          this.focusAnswerInput();
+          this.scrollToMessageStart(aiMessage.id, 'smooth');
         },
         error: (err) => {
           console.error('API error:', err);
-          this.messages.push({ role: 'ai', text: 'Sorry, something went wrong.' });
+          const aiMessage = this.createMessage('ai', 'Sorry, something went wrong.');
+          this.messages.push(aiMessage);
+          this.isAwaitingResponse = false;
+          this.isAnswerTurn = true;
+          this.focusAnswerInput();
+          this.scrollToMessageStart(aiMessage.id, 'smooth');
         }
       });
     } else {
@@ -165,18 +300,48 @@ export class Chat implements AfterViewChecked {
       }).subscribe({
         next: (res) => {
           const reply = res.reply || 'No response from interviewer.';
-          this.messages.push({ role: 'ai', text: marked.parse(reply) });
+          const aiMessage = this.createMessage('ai', marked.parse(reply) as string);
+          this.messages.push(aiMessage);
           this.lastQuestion = this.extractQuestion(reply);
+          this.isAwaitingResponse = false;
+          this.isAnswerTurn = true;
+          this.focusAnswerInput();
+          this.scrollToMessageStart(aiMessage.id, 'smooth');
         },
         error: (err) => {
           console.error('API error:', err);
-          this.messages.push({ role: 'ai', text: 'Error evaluating answer. Please try again.' });
+          const aiMessage = this.createMessage('ai', 'Error evaluating answer. Please try again.');
+          this.messages.push(aiMessage);
+          this.isAwaitingResponse = false;
+          this.isAnswerTurn = true;
+          this.focusAnswerInput();
+          this.scrollToMessageStart(aiMessage.id, 'smooth');
         }
       });
     }
   }
 
   ngAfterViewChecked() {
+    if (this.pendingRatingFocus && this.showRatingStep) {
+      const input = this.ratingInput?.nativeElement;
+      if (input) {
+        input.focus();
+        const end = input.value.length;
+        input.setSelectionRange(end, end);
+        this.pendingRatingFocus = false;
+      }
+    }
+
+    if (this.pendingAnswerFocus && this.canAnswerNow) {
+      const textarea = this.answerInput?.nativeElement;
+      if (textarea) {
+        textarea.focus();
+        const end = textarea.value.length;
+        textarea.setSelectionRange(end, end);
+        this.pendingAnswerFocus = false;
+      }
+    }
+
     this.checkScroll();
   }
 
@@ -188,11 +353,14 @@ export class Chat implements AfterViewChecked {
     }
   }
 
-  scrollToBottom() {
-    const container = document.querySelector('.chat-messages') as HTMLElement;
+  scrollToBottom(behavior: ScrollBehavior = 'smooth') {
+    const container = this.getChatContainer();
     if (container) {
       setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior,
+        });
       }, 0);
     }
   }
