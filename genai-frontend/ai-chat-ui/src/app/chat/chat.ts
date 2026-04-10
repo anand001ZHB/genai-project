@@ -1,8 +1,9 @@
-import { Component, AfterViewChecked, ElementRef, ViewChild } from '@angular/core';
+import { Component, AfterViewChecked, ElementRef, NgZone, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { marked } from 'marked';
+import { take } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 @Component({
@@ -48,10 +49,22 @@ export class Chat implements AfterViewChecked {
   currentThemeIndex = 0;
   showWelcomeScreen = true;
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private ngZone: NgZone) { }
 
   get canAnswerNow(): boolean {
     return this.interviewStarted && this.isAnswerTurn && !this.isAwaitingResponse && !this.showRatingStep;
+  }
+
+  get isStartDisabled(): boolean {
+    return this.interviewStarted || this.showRatingStep || this.isAwaitingResponse;
+  }
+
+  get hasSelectionChanges(): boolean {
+    return this.level !== 'easy' || this.experience !== '0-1 years' || this.topic !== 'JavaScript';
+  }
+
+  get isResetDisabled(): boolean {
+    return this.isStartDisabled || !this.hasSelectionChanges;
   }
 
   get currentThemeName(): string {
@@ -199,12 +212,28 @@ export class Chat implements AfterViewChecked {
     const textarea = this.answerInput?.nativeElement;
     if (!textarea) return;
 
-    setTimeout(() => {
-      textarea.focus();
-      const end = textarea.value.length;
-      textarea.setSelectionRange(end, end);
+    // Production builds can reorder/optimize rendering timing; wait for a stable frame.
+    this.ngZone.onStable.pipe(take(1)).subscribe(() => {
+      this.tryFocusAnswerInput(6);
+    });
+  }
+
+  private tryFocusAnswerInput(retries: number) {
+    const textarea = this.answerInput?.nativeElement;
+    if (!textarea || !this.canAnswerNow) return;
+
+    textarea.focus();
+    const end = textarea.value.length;
+    textarea.setSelectionRange(end, end);
+
+    if (document.activeElement === textarea) {
       this.pendingAnswerFocus = false;
-    }, 0);
+      return;
+    }
+
+    if (retries > 0) {
+      requestAnimationFrame(() => this.tryFocusAnswerInput(retries - 1));
+    }
   }
 
   private focusRatingInput() {
@@ -333,13 +362,7 @@ export class Chat implements AfterViewChecked {
     }
 
     if (this.pendingAnswerFocus && this.canAnswerNow) {
-      const textarea = this.answerInput?.nativeElement;
-      if (textarea) {
-        textarea.focus();
-        const end = textarea.value.length;
-        textarea.setSelectionRange(end, end);
-        this.pendingAnswerFocus = false;
-      }
+      this.tryFocusAnswerInput(4);
     }
 
     this.checkScroll();

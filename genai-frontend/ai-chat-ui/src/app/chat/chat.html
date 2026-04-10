@@ -42,7 +42,7 @@
         <div class="settings-fields">
         <label>
           Difficulty
-          <select [(ngModel)]="level">
+          <select [(ngModel)]="level" [disabled]="isStartDisabled">
             <option value="easy">Easy</option>
             <option value="medium">Medium</option>
             <option value="hard">Hard</option>
@@ -51,7 +51,7 @@
 
         <label>
           Experience
-          <select [(ngModel)]="experience">
+          <select [(ngModel)]="experience" [disabled]="isStartDisabled">
             <option value="0-1 years">0-1 years</option>
             <option value="2-4 years">2-4 years</option>
             <option value="5+ years">5+ years</option>
@@ -60,7 +60,7 @@
 
         <label>
           Topic
-          <select [(ngModel)]="topic">
+          <select [(ngModel)]="topic" [disabled]="isStartDisabled">
             <option value="JavaScript">JavaScript</option>
             <option value="Angular">Angular</option>
             <option value="TypeScript">TypeScript</option>
@@ -103,8 +103,8 @@
 
         <div class="settings-footer">
           <div class="buttons-row">
-            <button class="primary" (click)="startInterview()">Start Interview</button>
-            <button class="secondary" (click)="resetSelections()">Reset</button>
+            <button class="primary" [disabled]="isStartDisabled" (click)="startInterview()">Start Interview</button>
+            <button class="secondary" [disabled]="isResetDisabled" (click)="resetSelections()">Reset</button>
           </div>
         </div>
       </div>

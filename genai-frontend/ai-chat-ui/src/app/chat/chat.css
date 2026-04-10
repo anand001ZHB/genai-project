@@ -308,6 +308,19 @@ button.primary:hover {
   background: var(--button-hover);
 }
 
+.settings-footer button.primary:disabled {
+  background: rgba(100, 116, 139, 0.45);
+  color: rgba(226, 232, 240, 0.85);
+  cursor: not-allowed;
+}
+
+.settings-footer button.secondary:disabled {
+  background: rgba(100, 116, 139, 0.28);
+  color: rgba(226, 232, 240, 0.75);
+  border-color: rgba(100, 116, 139, 0.45);
+  cursor: not-allowed;
+}
+
 button.secondary:hover {
   background: rgba(148, 163, 184, 0.24);
 }
