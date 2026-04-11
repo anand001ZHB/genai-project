@@ -333,7 +333,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
         this.sessionId = res.sessionId || '';
         this.lastQuestion = res.question || this.extractQuestion(message);
         this.applySummary(res.summary);
-        this.speakQuestionWithDelay(this.lastQuestion || message);
+        this.speakQuestionWithDelay(message);
         this.interviewStarted = true;
         this.isAwaitingResponse = false;
         this.isAnswerTurn = true;
@@ -966,7 +966,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
         this.messages.push(aiMessage);
         this.lastQuestion = res.question || this.extractQuestion(message);
         this.applySummary(res.summary);
-        this.speakQuestionWithDelay(this.lastQuestion || message);
+        this.speakQuestionWithDelay(message);
 
         if (res?.ended) {
           this.endNotice = 'Okay, ending the interview. Here is your summary.';

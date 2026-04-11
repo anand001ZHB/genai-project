@@ -30,6 +30,8 @@ interface InterviewSession {
   config: Required<InterviewConfig>;
   lastQuestion: string;
   stuckAttemptsForCurrentQuestion: number;
+  greetingAttemptsForCurrentQuestion: number;
+  redirectAttemptsForCurrentQuestion: number;
   scoreTotals: SectionScores;
   scoreEntries: number;
 }
@@ -157,11 +159,87 @@ export class ChatService {
   }
 
   private extractQuestion(reply: string): string {
-    const questionMatch = reply.match(/(?:Question:|Q:)([\s\S]*)/i);
+    const text = (reply || '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+
+    const questionMatch = text.match(/(?:Question:|Q:)([\s\S]*)/i);
     if (questionMatch && questionMatch[1]) {
       return questionMatch[1].trim();
     }
-    return reply.trim();
+
+    const lastQIndex = text.lastIndexOf('?');
+    if (lastQIndex !== -1) {
+      const prefix = text.slice(0, lastQIndex + 1);
+      const boundary = Math.max(
+        prefix.lastIndexOf('. '),
+        prefix.lastIndexOf('! '),
+        prefix.lastIndexOf('? '),
+        prefix.lastIndexOf('\n'),
+      );
+      const candidate = prefix.slice(boundary >= 0 ? boundary + 1 : 0).trim();
+      if (candidate) return candidate;
+    }
+
+    return text;
+  }
+
+  private isVagueOrOffTopicInterruption(message: string): boolean {
+    const normalized = (message || '')
+      .toLowerCase()
+      .replace(/[’`]/g, "'")
+      .trim();
+    const cleaned = normalized.replace(/[^a-z\s']/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (!cleaned) return false;
+
+    const tokens = cleaned.split(/\s+/).filter(Boolean);
+    const uniqueTokenCount = new Set(tokens).size;
+    const shortCasualSingle = new Set([
+      'ok', 'okay', 'hmm', 'huh', 'lol', 'haha', 'yes', 'no', 'sure', 'fine', 'great', 'cool', 'alright', 'maybe',
+    ]);
+
+    if (tokens.length <= 2 && tokens.every((t) => shortCasualSingle.has(t))) {
+      return true;
+    }
+
+    const smallTalkPhrases = [
+      'how are you',
+      "how's it going",
+      'hows it going',
+      'what is up',
+      "what's up",
+      'whats up',
+      'nice to meet you',
+      'thank you',
+      'thanks',
+      'good one',
+    ];
+
+    if (smallTalkPhrases.some((phrase) => normalized.includes(phrase))) {
+      return true;
+    }
+
+    const technicalCueRegex = /\b(function|method|class|object|array|string|number|boolean|scope|closure|context|this|bind|call|apply|prototype|recursion|stack|javascript|js|typescript|async|await|promise|loop|algorithm)\b/i;
+    const repetitiveNoise = tokens.length >= 2 && uniqueTokenCount === 1;
+    const lowSignalNoise = tokens.length <= 5 && uniqueTokenCount <= 2 && !technicalCueRegex.test(cleaned);
+
+    if (repetitiveNoise || lowSignalNoise) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private summarizeUserSnippet(message: string, maxWords = 4): string {
+    const words = (message || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .map((w) => w.trim())
+      .filter((w) => w.length > 1)
+      .slice(0, maxWords);
+
+    return words.join(' ') || 'that response';
   }
 
   private detectResponseSignal(message: string): ResponseSignal {
@@ -270,8 +348,8 @@ export class ChatService {
       return 'dont_know';
     }
 
-    const greetingOnlyRegex = /^(?:(?:hi|hello|hey|hola|good morning|good afternoon|good evening)(?:\s+(?:hi|hello|hey|there|team|all|everyone|sir|madam|mam))*)$/i;
-    if (cleaned.length > 0 && cleaned.split(' ').length <= 6 && greetingOnlyRegex.test(cleaned)) {
+    const greetingOnlyRegex = /^(?:(?:hi|hello|hey|hola|good morning|good afternoon|good evening)(?:\s+(?:hi|hello|hey|hola|good morning|good afternoon|good evening|there|team|all|everyone|sir|madam|mam))*)$/i;
+    if (cleaned.length > 0 && greetingOnlyRegex.test(cleaned)) {
       return 'greeting';
     }
 
@@ -357,27 +435,52 @@ export class ChatService {
     };
   }
 
-  private buildGreetingReply(question: string) {
-    const greetings = [
-      'Hey, good to hear from you.',
-      'Hi, glad you are here.',
-      'Hello, nice to meet you.',
-      'Hey there, great to connect.',
+  private buildGreetingReply(question: string, repeatCount: number, answer: string) {
+    const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your approach?';
+    const snippet = this.summarizeUserSnippet(answer, 3);
+
+    if (repeatCount <= 1) {
+      const firstReplies = [
+        `Hey, good to hear from you. Can you walk me through this: ${safeQuestion}`,
+        `Hi there. Let us keep going with this: ${safeQuestion}`,
+        `Nice to hear from you. Please answer this: ${safeQuestion}`,
+      ];
+      return firstReplies[Math.floor(Math.random() * firstReplies.length)];
+    }
+
+    if (repeatCount === 2) {
+      const secondReplies = [
+        `No worries, I heard "${snippet}". When you are ready, answer this question: ${safeQuestion}`,
+        `All good, I got "${snippet}". Let us continue with: ${safeQuestion}`,
+      ];
+      return secondReplies[Math.floor(Math.random() * secondReplies.length)];
+    }
+
+    const repeatReplies = [
+      `I hear "${snippet}" again. Please choose one: answer this question now, or say "move on". ${safeQuestion}`,
+      `You are repeating greetings ("${snippet}"). Please choose one: answer now, or say "move on". ${safeQuestion}`,
     ];
+    return repeatReplies[Math.floor(Math.random() * repeatReplies.length)];
+  }
 
-    const transitions = [
-      'Let us continue with this one:',
-      'Let us pick up where we left off:',
-      'We can jump right back in:',
-      'Let us keep going with this question:',
-    ];
+  private buildOffTopicRedirectReply(question: string, repeatCount: number, answer: string): string {
+    const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your approach?';
+    const snippet = this.summarizeUserSnippet(answer);
 
-    const safeQuestion = (question || '').trim() || 'Can you walk me through your approach?';
-    const seed = Date.now();
-    const greeting = greetings[seed % greetings.length];
-    const transition = transitions[(seed + 1) % transitions.length];
+    if (repeatCount <= 1) {
+      const firstNudges = [
+        `I heard "${snippet}", but that drifts from the current question. Kindly focus on this: ${safeQuestion}`,
+        `Got "${snippet}". Let us keep the interview on track and answer this: ${safeQuestion}`,
+        `Fair point on "${snippet}". Now please answer the current question: ${safeQuestion}`,
+      ];
+      return firstNudges[Math.floor(Math.random() * firstNudges.length)];
+    }
 
-    return `${greeting} ${transition} ${safeQuestion}`;
+    if (repeatCount === 2) {
+      return `We are still off topic ("${snippet}"). Let us focus on this one now: ${safeQuestion}`;
+    }
+
+    return `I am still hearing "${snippet}" and not a real attempt. Please either answer now, or say "move on" and I will switch the question.`;
   }
 
   private openai: OpenAI | null = null;
@@ -533,6 +636,8 @@ Keep it conversational and concise. Ask exactly ONE focused question.
       },
       lastQuestion: question,
       stuckAttemptsForCurrentQuestion: 0,
+      greetingAttemptsForCurrentQuestion: 0,
+      redirectAttemptsForCurrentQuestion: 0,
       scoreTotals: this.createEmptyScores(),
       scoreEntries: 0,
     };
@@ -616,14 +721,20 @@ Keep it conversational and concise. Ask exactly ONE focused question.
 
     if (responseSignal === 'dont_know' || responseSignal === 'move_on') {
       session.stuckAttemptsForCurrentQuestion += 1;
+      session.greetingAttemptsForCurrentQuestion = 0;
+      session.redirectAttemptsForCurrentQuestion = 0;
+    } else if (responseSignal === 'greeting') {
+      session.greetingAttemptsForCurrentQuestion += 1;
+      session.redirectAttemptsForCurrentQuestion = 0;
     } else {
       session.stuckAttemptsForCurrentQuestion = 0;
+      session.greetingAttemptsForCurrentQuestion = 0;
     }
 
     const stuckAttempts = session.stuckAttemptsForCurrentQuestion;
 
     if (responseSignal === 'greeting') {
-      const message = this.buildGreetingReply(question);
+      const message = this.buildGreetingReply(question, session.greetingAttemptsForCurrentQuestion, answer);
       return {
         sessionId,
         message,
@@ -637,6 +748,26 @@ Keep it conversational and concise. Ask exactly ONE focused question.
         summary: this.getSummary(session),
       };
     }
+
+    if (responseSignal === 'normal' && this.isVagueOrOffTopicInterruption(answer) && !this.isSubstantiveAnswer(answer) && !this.hasUncertaintyCue(answer)) {
+      session.redirectAttemptsForCurrentQuestion += 1;
+      const message = this.buildOffTopicRedirectReply(question, session.redirectAttemptsForCurrentQuestion, answer);
+
+      return {
+        sessionId,
+        message,
+        question,
+        evaluation: null,
+        progress: {
+          responseSignal,
+          questionChanged: false,
+          stuckAttempts,
+        },
+        summary: this.getSummary(session),
+      };
+    }
+
+    session.redirectAttemptsForCurrentQuestion = 0;
 
     if (responseSignal === 'move_on' || (responseSignal === 'dont_know' && stuckAttempts >= 2)) {
       const moveAheadPrompt = `The candidate wants to move ahead in the interview.
@@ -679,6 +810,8 @@ Respond exactly like a real interviewer:
       if (questionChanged) {
         session.lastQuestion = nextQuestion;
         session.stuckAttemptsForCurrentQuestion = 0;
+        session.greetingAttemptsForCurrentQuestion = 0;
+        session.redirectAttemptsForCurrentQuestion = 0;
       }
 
       return {
@@ -752,6 +885,8 @@ Critical constraints:
     if (questionChanged) {
       session.lastQuestion = nextQuestion;
       session.stuckAttemptsForCurrentQuestion = 0;
+      session.greetingAttemptsForCurrentQuestion = 0;
+      session.redirectAttemptsForCurrentQuestion = 0;
     }
 
     return {
