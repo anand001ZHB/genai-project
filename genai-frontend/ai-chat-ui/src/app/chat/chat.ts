@@ -293,6 +293,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
         '</div>'
       )
     );
+
   }
 
   submitSelfRating() {
@@ -751,6 +752,10 @@ export class Chat implements AfterViewChecked, OnDestroy {
   autoResizeAnswer(event: Event) {
     const textarea = event.target as HTMLTextAreaElement;
     if (!textarea) return;
+
+    if (textarea.value.trim().length > 0 && this.voiceErrorMessage) {
+      this.voiceErrorMessage = '';
+    }
 
     this.applyAnswerTextareaSizing(textarea);
     this.updateAnswerMultilineState(textarea);

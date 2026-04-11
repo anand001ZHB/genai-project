@@ -381,7 +381,39 @@
 
 @media (max-width: 980px) {
   .chat-wrapper {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .chat-panel {
+    height: auto;
+    overflow: visible;
+  }
+
+  .chat-messages-shell {
+    flex: none;
+    min-height: auto;
+    overflow: hidden;
+  }
+
+  .chat-panel .chat-messages {
+    flex: none;
+    min-height: auto;
+    height: auto;
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .chat-panel .chat-input {
+    position: static;
+  }
+
+  .bubble {
+    max-width: 100%;
   }
 
   .intro-panel {

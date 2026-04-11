@@ -38,94 +38,97 @@
       <div class="settings-panel mt-xl">
         <p class="settings-helper-text">Choose the required dropdown settings to begin your mock interview.</p>
 
-        <div class="settings-fields">
-        <label>
-          Difficulty
-          <select [(ngModel)]="level" [disabled]="isStartDisabled">
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-        </label>
+        <div class="settings-scroll">
+          <div class="settings-fields">
+            <label>
+              Difficulty
+              <select [(ngModel)]="level" [disabled]="isStartDisabled">
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </label>
 
-        <label>
-          Experience
-          <select [(ngModel)]="experience" [disabled]="isStartDisabled">
-            <option value="0-1 years">0-1 years</option>
-            <option value="2-4 years">2-4 years</option>
-            <option value="5+ years">5+ years</option>
-          </select>
-        </label>
+            <label>
+              Experience
+              <select [(ngModel)]="experience" [disabled]="isStartDisabled">
+                <option value="0-1 years">0-1 years</option>
+                <option value="2-4 years">2-4 years</option>
+                <option value="5+ years">5+ years</option>
+              </select>
+            </label>
 
-        <label>
-          Subject
-          <select [(ngModel)]="topic" [disabled]="isStartDisabled">
-            <option value="JavaScript">JavaScript</option>
-            <option value="Angular">Angular</option>
-            <option value="TypeScript">TypeScript</option>
-            <option value="React">React</option>
-            <option value="Vue">Vue</option>
-            <option value="CSS">CSS</option>
-            <option value="HTML">HTML</option>
-            <option value="Web Performance">Web Performance</option>
-            <option value="Frontend Architecture">Frontend Architecture</option>
-            <option value="Node.js">Node.js</option>
-            <option value="Express.js">Express.js</option>
-            <option value="NestJS">NestJS</option>
-            <option value="REST APIs">REST APIs</option>
-            <option value="GraphQL">GraphQL</option>
-            <option value="SQL">SQL</option>
-            <option value="PostgreSQL">PostgreSQL</option>
-            <option value="MongoDB">MongoDB</option>
-            <option value="System Design">System Design</option>
-            <option value="Java">Java</option>
-            <option value="Spring Boot">Spring Boot</option>
-            <option value="Hibernate">Hibernate</option>
-            <option value="Microservices (Java)">Microservices (Java)</option>
-            <option value="C#">C#</option>
-            <option value=".NET">.NET</option>
-            <option value="ASP.NET Core">ASP.NET Core</option>
-            <option value="Entity Framework Core">Entity Framework Core</option>
-            <option value="LINQ">LINQ</option>
-            <option value="Python">Python</option>
-            <option value="Pandas">Pandas</option>
-            <option value="NumPy">NumPy</option>
-            <option value="Data Analysis">Data Analysis</option>
-            <option value="Data Visualization">Data Visualization</option>
-            <option value="Statistics">Statistics</option>
-            <option value="Machine Learning">Machine Learning</option>
-            <option value="Deep Learning">Deep Learning</option>
-          </select>
-        </label>
-
-        <div class="voice-question-toggle">
-          <span>Interviewer voice</span>
-          <button
-            type="button"
-            class="interviewer-voice-toggle-btn"
-            [class.on]="questionVoiceEnabled"
-            [class.off]="!questionVoiceEnabled"
-            (click)="toggleQuestionVoice()"
-            [title]="questionVoiceEnabled ? 'Interviewer voice on' : 'Interviewer voice off'"
-            aria-label="Toggle interviewer voice"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <path *ngIf="questionVoiceEnabled" d="M15.5 8.5a5 5 0 0 1 0 7"></path>
-              <path *ngIf="questionVoiceEnabled" d="M18.5 5.5a9 9 0 0 1 0 13"></path>
-              <line *ngIf="!questionVoiceEnabled" x1="23" y1="9" x2="17" y2="15"></line>
-              <line *ngIf="!questionVoiceEnabled" x1="17" y1="9" x2="23" y2="15"></line>
-            </svg>
-            <span>{{ questionVoiceEnabled ? 'On' : 'Off' }}</span>
-          </button>
+            <label>
+              Subject
+              <select [(ngModel)]="topic" [disabled]="isStartDisabled">
+                <option value="JavaScript">JavaScript</option>
+                <option value="Angular">Angular</option>
+                <option value="TypeScript">TypeScript</option>
+                <option value="React">React</option>
+                <option value="Vue">Vue</option>
+                <option value="CSS">CSS</option>
+                <option value="HTML">HTML</option>
+                <option value="Web Performance">Web Performance</option>
+                <option value="Frontend Architecture">Frontend Architecture</option>
+                <option value="Node.js">Node.js</option>
+                <option value="Express.js">Express.js</option>
+                <option value="NestJS">NestJS</option>
+                <option value="REST APIs">REST APIs</option>
+                <option value="GraphQL">GraphQL</option>
+                <option value="SQL">SQL</option>
+                <option value="PostgreSQL">PostgreSQL</option>
+                <option value="MongoDB">MongoDB</option>
+                <option value="System Design">System Design</option>
+                <option value="Java">Java</option>
+                <option value="Spring Boot">Spring Boot</option>
+                <option value="Hibernate">Hibernate</option>
+                <option value="Microservices (Java)">Microservices (Java)</option>
+                <option value="C#">C#</option>
+                <option value=".NET">.NET</option>
+                <option value="ASP.NET Core">ASP.NET Core</option>
+                <option value="Entity Framework Core">Entity Framework Core</option>
+                <option value="LINQ">LINQ</option>
+                <option value="Python">Python</option>
+                <option value="Pandas">Pandas</option>
+                <option value="NumPy">NumPy</option>
+                <option value="Data Analysis">Data Analysis</option>
+                <option value="Data Visualization">Data Visualization</option>
+                <option value="Statistics">Statistics</option>
+                <option value="Machine Learning">Machine Learning</option>
+                <option value="Deep Learning">Deep Learning</option>
+              </select>
+            </label>
+          </div>
         </div>
 
-        </div>
+        <div class="settings-bottom">
+          <div class="voice-question-toggle">
+            <span>Interviewer voice</span>
+            <button
+              type="button"
+              class="interviewer-voice-toggle-btn"
+              [class.on]="questionVoiceEnabled"
+              [class.off]="!questionVoiceEnabled"
+              (click)="toggleQuestionVoice()"
+              [title]="questionVoiceEnabled ? 'Interviewer voice on' : 'Interviewer voice off'"
+              aria-label="Toggle interviewer voice"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path *ngIf="questionVoiceEnabled" d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+                <path *ngIf="questionVoiceEnabled" d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+                <line *ngIf="!questionVoiceEnabled" x1="23" y1="9" x2="17" y2="15"></line>
+                <line *ngIf="!questionVoiceEnabled" x1="17" y1="9" x2="23" y2="15"></line>
+              </svg>
+              <span>{{ questionVoiceEnabled ? 'On' : 'Off' }}</span>
+            </button>
+          </div>
 
-        <div class="settings-footer">
-          <div class="buttons-row">
-            <button class="primary" [disabled]="isStartDisabled" (click)="startInterview()">Start Interview</button>
-            <button class="secondary" [disabled]="isResetDisabled" (click)="resetSelections()">Reset</button>
+          <div class="settings-footer">
+            <div class="buttons-row">
+              <button class="primary" [disabled]="isStartDisabled" (click)="startInterview()">Start Interview</button>
+              <button class="secondary" [disabled]="isResetDisabled" (click)="resetSelections()">Reset</button>
+            </div>
           </div>
         </div>
       </div>
@@ -334,4 +337,10 @@
       </div>
     </section>
   </main>
+
+  <footer class="app-footer" role="contentinfo" aria-label="Legal information">
+    <div class="app-footer-content">
+     <span>© April 2026 InterviewBot. All rights reserved. Updated on April 11, 2026.</span>
+    </div>
+  </footer>
 </div>

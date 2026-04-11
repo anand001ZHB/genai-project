@@ -32,14 +32,43 @@ body {
   flex-direction: column;
   height: 100%;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 58px;
   background: var(--bg);
   color: var(--text);
   font-family: Inter, system-ui, sans-serif;
 }
 
+.app-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  border-top: var(--chat-border-width) solid var(--border);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.app-footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 16px;
+  font-size: 0.76rem;
+  line-height: 1.3;
+  color: var(--muted);
+  text-align: center;
+  flex-wrap: wrap;
+}
+
 .app-header {
   flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -160,6 +189,24 @@ body {
 }
 
 @media (max-width: 900px) {
+  .page-shell {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .chat-wrapper {
+    padding-bottom: calc(var(--spacing-2xl) + 56px + env(safe-area-inset-bottom));
+  }
+
+  .chat-panel .chat-input {
+    margin-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .app-footer-content {
+    gap: 8px;
+    font-size: 0.68rem;
+    padding: 8px 10px;
+  }
+
   .welcome-screen {
     min-height: calc(100vh - var(--chat-header-offset-mobile));
     padding: var(--spacing-md);
@@ -177,7 +224,7 @@ body {
   padding: var(--spacing-md);
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
 }
 
 .intro-panel {
@@ -189,7 +236,7 @@ body {
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: var(--shadow-md);
 }
 
@@ -243,9 +290,7 @@ body {
   margin-top: var(--chat-settings-margin-top);
   min-height: 0;
   flex: 1;
-  position: relative;
-  --settings-footer-height: var(--chat-settings-footer-height);
-  padding-bottom: 0;
+  overflow: visible;
 }
 
 .settings-helper-text {
@@ -256,13 +301,82 @@ body {
   font-weight: 600;
 }
 
+.settings-scroll {
+  flex: none;
+  min-height: auto;
+  overflow: visible;
+  padding-right: 0;
+}
+
 .settings-fields {
   display: grid;
   gap: var(--chat-settings-field-gap);
-  padding-bottom: var(--settings-footer-height);
+  padding-bottom: var(--spacing-xs);
 }
 
-.settings-panel .voice-question-toggle {
+.settings-bottom {
+  flex-shrink: 0;
+  margin-top: 0;
+  background: var(--surface);
+  padding-top: var(--spacing-xs);
+}
+
+@media (max-width: 980px) {
+  .settings-panel {
+    flex: none;
+    min-height: auto;
+  }
+
+  .settings-bottom {
+    margin-top: var(--spacing-sm);
+  }
+}
+
+@media (min-width: 981px) {
+  .intro-panel {
+    position: sticky;
+    top: var(--spacing-md);
+    max-height: calc(100vh - var(--chat-header-offset-desktop) - (var(--spacing-md) * 2));
+    overflow: visible;
+  }
+
+  .settings-panel {
+    overflow: visible;
+  }
+
+  .settings-scroll {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .settings-fields {
+    padding-bottom: var(--spacing-xs);
+  }
+
+  .settings-bottom {
+    position: static;
+    margin-top: auto;
+    border-top: none;
+  }
+}
+
+.settings-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-scroll::-webkit-scrollbar-thumb {
+  background: var(--chat-scrollbar-thumb);
+  border-radius: var(--radius-full);
+}
+
+.settings-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--chat-scrollbar-thumb) transparent;
+}
+
+.voice-question-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -720,11 +834,8 @@ body {
 }
 
 .settings-footer {
-  margin-top: 0;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  margin-top: var(--spacing-sm);
+  position: static;
   background: var(--surface);
 }
 
