@@ -5,19 +5,22 @@
       <div class="app-subtitle">Mock interview simulation with real-time questions and feedback powered by AI</div>
     </div>
     <div class="header-actions">
-      <div class="theme-cycler">
-        <button type="button" class="theme-nav-btn" (click)="cycleThemePrev()" title="Previous theme">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-        <div class="theme-label">{{ currentThemeName }}</div>
-        <button type="button" class="theme-nav-btn" (click)="cycleThemeNext()" title="Next theme">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </button>
-      </div>
+      <label class="theme-select-wrap" aria-label="Select app theme">
+        <span>Theme</span>
+        <select [(ngModel)]="selectedTheme" (ngModelChange)="onThemeSelectionChange($event)">
+          <option *ngFor="let theme of themes" [value]="theme.class">{{ theme.label }}</option>
+        </select>
+      </label>
+
+      <label class="voice-select-wrap" *ngIf="ttsSupported" aria-label="Select interviewer voice">
+        <span>Voice</span>
+        <select [(ngModel)]="selectedSpeechVoiceName" (ngModelChange)="onSpeechVoiceChange()">
+          <option value="">System default</option>
+          <option *ngFor="let voice of availableSpeechVoices" [value]="voice.name">
+            {{ voice.name }} ({{ voice.lang }})
+          </option>
+        </select>
+      </label>
     </div>
   </header>
 
@@ -351,7 +354,8 @@
 
   <footer class="app-footer" role="contentinfo" aria-label="Legal information">
     <div class="app-footer-content">
-     <span>© April 2026 InterviewBot. All rights reserved. Updated on April 11, 2026.</span>
+      <span>© April 2026 InterviewBot. All rights reserved. Updated on April 11, 2026.</span>
+      <span>Voice support: Best on latest Chrome/Edge (desktop) and Android Chrome. Safari/Firefox may have limited microphone support.</span>
     </div>
   </footer>
 </div>

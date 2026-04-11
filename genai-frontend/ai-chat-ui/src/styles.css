@@ -82,57 +82,39 @@ body {
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.theme-cycler {
-  display: flex;
+.theme-select-wrap,
+.voice-select-wrap {
+  display: inline-flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  background: var(--theme-bg);
+  gap: 6px;
+  padding: 4px 8px;
   border: var(--chat-border-width) solid var(--theme-border);
-  border-radius: var(--radius-full);
-  padding: var(--spacing-xs) var(--spacing-md);
-  transition: all var(--transition-fast);
-}
-
-.theme-cycler:hover {
-  border-color: var(--button);
+  border-radius: 10px;
   background: var(--theme-bg);
-}
-
-.theme-nav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--chat-theme-nav-size);
-  height: var(--chat-theme-nav-size);
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
   color: var(--text);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.theme-nav-btn:hover {
-  background: var(--button);
-  color: var(--button-text);
-  transform: scale(1.05);
-}
-
-.theme-nav-btn:active {
-  transform: scale(0.95);
-}
-
-.theme-label {
-  min-width: var(--chat-theme-label-min-width);
-  text-align: center;
-  font-size: var(--chat-theme-label-font-size);
+  font-size: 0.74rem;
   font-weight: 600;
+}
+
+.theme-select-wrap span,
+.voice-select-wrap span {
+  white-space: nowrap;
+}
+
+.theme-select-wrap select,
+.voice-select-wrap select {
+  max-width: 180px;
+  border: var(--chat-border-width) solid var(--border);
+  border-radius: 8px;
+  background: var(--input);
   color: var(--text);
-  letter-spacing: var(--chat-theme-label-letter-spacing);
-  transition: all var(--transition-fast);
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  outline: none;
 }
 
 .app-brand {
@@ -483,16 +465,25 @@ body {
 
 .chat-answer-field {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
 }
 
 .chat-answer-field textarea {
-  padding-right: 56px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
   position: relative;
   z-index: 1;
 }
 
 .chat-answer-field.has-inline-send textarea {
-  padding-right: 98px;
+  padding-right: 10px;
 }
 
 .composer-actions {
@@ -537,11 +528,10 @@ body {
 }
 
 .mic-indicator {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  width: 34px;
-  height: 34px;
+  position: static;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
   border-radius: 10px;
   border: var(--chat-border-width) solid var(--border);
   background: color-mix(in srgb, var(--surface) 90%, transparent);
@@ -554,27 +544,26 @@ body {
   box-shadow: none;
   z-index: 2;
   pointer-events: auto;
-  transform: translateY(-50%);
+  transform: none;
+  align-self: center;
 }
 
 .mic-indicator.multiline {
   top: auto;
-  bottom: 9px;
+  bottom: auto;
   transform: none;
 }
 
 .mic-indicator.with-send,
 .mic-indicator.with-send.multiline {
-  right: 48px;
+  right: auto;
 }
 
 .inline-send {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 34px;
-  height: 34px;
+  position: static;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
   border: var(--chat-border-width) solid var(--border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface) 90%, transparent);
@@ -584,12 +573,16 @@ body {
   justify-content: center;
   cursor: pointer;
   z-index: 2;
+  align-self: center;
+  transform: none;
   transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
 }
 
 .inline-send.multiline {
   top: auto;
-  bottom: 8px;
+  bottom: auto;
+  align-self: flex-end;
+  margin-bottom: 1px;
   transform: none;
 }
 
@@ -599,7 +592,12 @@ body {
 }
 
 .mic-indicator:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.985);
+  transform: scale(0.985);
+}
+
+.mic-indicator.multiline {
+  align-self: flex-end;
+  margin-bottom: 1px;
 }
 
 .mic-indicator:disabled {
@@ -810,6 +808,63 @@ body {
 }
 
 @media (max-width: 760px) {
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .app-brand {
+    gap: 2px;
+  }
+
+  .app-title {
+    font-size: 1rem;
+    line-height: 1.1;
+  }
+
+  .app-subtitle {
+    font-size: 0.62rem;
+    line-height: 1.2;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .theme-select-wrap,
+  .voice-select-wrap {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .theme-select-wrap,
+  .voice-select-wrap {
+    gap: 4px;
+    padding: 3px 6px;
+    justify-content: flex-end;
+  }
+
+  .theme-select-wrap span,
+  .voice-select-wrap span {
+    font-size: 0.66rem;
+  }
+
+  .theme-select-wrap select,
+  .voice-select-wrap select {
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
+    padding: 2px 6px;
+    font-size: 0.66rem;
+  }
+
   .chat-input {
     align-items: stretch;
     flex-direction: row;
@@ -826,40 +881,63 @@ body {
   }
 
   .chat-answer-field textarea {
-    padding-right: 52px;
+    padding-right: 10px;
   }
 
   .chat-answer-field.has-inline-send textarea {
-    padding-right: 90px;
+    padding-right: 10px;
   }
 
   .mic-indicator {
-    width: 30px;
-    height: 30px;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    right: auto;
+    top: auto;
+    transform: none;
   }
 
   .mic-indicator.multiline {
     top: auto;
-    bottom: 8px;
+    bottom: auto;
     transform: none;
   }
 
   .mic-indicator.with-send,
   .mic-indicator.with-send.multiline {
-    right: 40px;
+    right: auto;
   }
 
   .inline-send {
-    width: 30px;
-    height: 30px;
-    right: 8px;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    right: auto;
   }
 
   .inline-send.multiline {
-    bottom: 8px;
+    bottom: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-subtitle {
+    display: none;
+  }
+
+  .theme-select-wrap,
+  .voice-select-wrap {
+    padding: 2px 5px;
+  }
+
+  .theme-select-wrap span,
+  .voice-select-wrap span {
+    display: none;
+  }
+
+  .theme-select-wrap select,
+  .voice-select-wrap select {
+    font-size: 0.64rem;
   }
 }
 

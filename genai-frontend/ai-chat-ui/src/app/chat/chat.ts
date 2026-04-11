@@ -54,13 +54,14 @@ export class Chat implements AfterViewChecked, OnDestroy {
   @ViewChild('answerInput') answerInput?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('ratingInput') ratingInput?: ElementRef<HTMLTextAreaElement | HTMLInputElement>;
 
-  private apiBaseUrl = ((environment as any).apiBaseUrl || (environment as any).apiUrl || '').replace(/\/+$/, '') || '';
+  private apiBaseUrl = this.resolveApiBaseUrl();
   private readonly ratingRangeValidationMessage = 'You can respond only in between 1 to 10.';
   private readonly thinkingDurationSeconds = 30;
   private readonly maxVoiceAnswerSeconds = 120;
   private readonly silenceTimeoutMs = 3000;
   private readonly initialSpeechTimeoutMs = 8000;
   private readonly fillerWords = ['umm', 'um', 'uh', 'like', 'you know', 'actually', 'basically', 'literally'];
+  private readonly voiceSupportGuidance = 'Voice input works best on latest Chrome or Edge (desktop), and Android Chrome. Safari and Firefox may have limited microphone support.';
 
   userInput = '';
   level = 'easy';
@@ -86,6 +87,8 @@ export class Chat implements AfterViewChecked, OnDestroy {
   questionVoiceEnabled = true;
   speechSupported = false;
   ttsSupported = false;
+  availableSpeechVoices: SpeechSynthesisVoice[] = [];
+  selectedSpeechVoiceName = '';
   isThinking = false;
   thinkSecondsLeft = 0;
   isRecording = false;
@@ -123,6 +126,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   private visualizerAudioContext: AudioContext | null = null;
   private visualizerAnalyser: AnalyserNode | null = null;
   private visualizerData: Uint8Array<ArrayBuffer> | null = null;
+  private speechVoicesChangedHandler: (() => void) | null = null;
 
   private summary: InterviewSummary = {
     hasScoreData: false,
@@ -134,7 +138,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
     overallAvg: 0,
   };
   
-  private themes = [
+  readonly themes = [
     { class: 'theme-dark', label: 'Night' },
     { class: 'theme-sky', label: 'Sky' },
     { class: 'theme-lavender', label: 'Lavender' },
@@ -148,6 +152,39 @@ export class Chat implements AfterViewChecked, OnDestroy {
 
   constructor(private http: HttpClient, private ngZone: NgZone) {
     this.initializeVoiceSupport();
+  }
+
+  private resolveApiBaseUrl(): string {
+    const configuredBase = ((environment as any).apiBaseUrl || (environment as any).apiUrl || '').replace(/\/+$/, '');
+
+    if (typeof window === 'undefined') {
+      return configuredBase || '';
+    }
+
+    const { protocol, hostname } = window.location;
+
+    // In GitHub Codespaces, replace the current forwarded port with backend port 3000.
+    if (hostname.endsWith('.app.github.dev')) {
+      const derivedHost = hostname.replace(/-\d+\.app\.github\.dev$/, '-3000.app.github.dev');
+      const derivedBaseUrl = `${protocol}//${derivedHost}`;
+
+      if (!configuredBase) {
+        return derivedBaseUrl;
+      }
+
+      try {
+        const configuredHost = new URL(configuredBase).hostname;
+        return configuredHost.endsWith('.app.github.dev') ? derivedBaseUrl : configuredBase;
+      } catch {
+        return configuredBase;
+      }
+    }
+
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return configuredBase || `${protocol}//${hostname}:3000`;
+    }
+
+    return configuredBase || '';
   }
 
   toggleQuestionVoice() {
@@ -258,6 +295,14 @@ export class Chat implements AfterViewChecked, OnDestroy {
   cycleThemePrev() {
     this.currentThemeIndex = (this.currentThemeIndex - 1 + this.themes.length) % this.themes.length;
     this.selectedTheme = this.themes[this.currentThemeIndex].class;
+  }
+
+  onThemeSelectionChange(themeClass: string) {
+    this.selectedTheme = themeClass;
+    const index = this.themes.findIndex((theme) => theme.class === themeClass);
+    if (index >= 0) {
+      this.currentThemeIndex = index;
+    }
   }
 
   startInterview() {
@@ -660,6 +705,16 @@ export class Chat implements AfterViewChecked, OnDestroy {
   ngOnDestroy() {
     this.stopRatingVoiceCapture();
     this.cancelVoiceActivities();
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window && this.speechVoicesChangedHandler) {
+      if (typeof window.speechSynthesis.removeEventListener === 'function') {
+        window.speechSynthesis.removeEventListener('voiceschanged', this.speechVoicesChangedHandler);
+      } else if ((window.speechSynthesis as any).onvoiceschanged === this.speechVoicesChangedHandler) {
+        (window.speechSynthesis as any).onvoiceschanged = null;
+      }
+    }
+
+    this.speechVoicesChangedHandler = null;
   }
 
   private isEndInterviewIntent(message: string): boolean {
@@ -1004,12 +1059,112 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.speechSupported = !!speechCtor;
     this.ttsSupported = 'speechSynthesis' in window;
 
-    if (!this.speechSupported) {
+    const hasMediaDevices = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+    const secureContext = !!window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    if (!secureContext) {
       this.voiceModeEnabled = false;
-      this.voiceErrorMessage = 'Voice input is not supported in this browser. Use Chrome or Edge for full support.';
+      this.voiceErrorMessage = 'Voice input needs a secure site (HTTPS) or localhost. Open this app over HTTPS to use the microphone.';
+      return;
     }
 
-    if (this.ttsSupported) this.stopInterviewerSpeech();
+    if (!this.speechSupported) {
+      this.voiceModeEnabled = false;
+      this.voiceErrorMessage = this.getBrowserSpecificVoiceSupportMessage();
+      return;
+    }
+
+    if (!hasMediaDevices) {
+      this.voiceModeEnabled = false;
+      this.voiceErrorMessage = 'This browser does not provide microphone capture APIs. Try latest Chrome or Edge.';
+      return;
+    }
+
+    if (this.ttsSupported) {
+      this.initializeSpeechVoices();
+      this.stopInterviewerSpeech();
+    }
+  }
+
+  onSpeechVoiceChange() {
+    this.stopInterviewerSpeech();
+  }
+
+  private initializeSpeechVoices() {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return;
+    }
+
+    const speechSynthesisApi = window.speechSynthesis;
+    const refresh = () => this.refreshSpeechVoices();
+    this.speechVoicesChangedHandler = refresh;
+
+    if (typeof speechSynthesisApi.addEventListener === 'function') {
+      speechSynthesisApi.addEventListener('voiceschanged', refresh);
+    } else {
+      (speechSynthesisApi as any).onvoiceschanged = refresh;
+    }
+
+    this.refreshSpeechVoices();
+    setTimeout(() => this.refreshSpeechVoices(), 0);
+  }
+
+  private refreshSpeechVoices() {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return;
+    }
+
+    const voices = window.speechSynthesis.getVoices() || [];
+    this.availableSpeechVoices = [...voices].sort((a, b) => {
+      const byLang = a.lang.localeCompare(b.lang);
+      if (byLang !== 0) return byLang;
+      return a.name.localeCompare(b.name);
+    });
+
+    if (!this.availableSpeechVoices.length) {
+      this.selectedSpeechVoiceName = '';
+      return;
+    }
+
+    const selectedExists = this.availableSpeechVoices.some((voice) => voice.name === this.selectedSpeechVoiceName);
+    if (selectedExists) {
+      return;
+    }
+
+    const preferred =
+      this.availableSpeechVoices.find((voice) => voice.default) ||
+      this.availableSpeechVoices.find((voice) => voice.lang.toLowerCase().startsWith('en')) ||
+      this.availableSpeechVoices[0];
+
+    this.selectedSpeechVoiceName = preferred?.name || '';
+  }
+
+  private getSelectedSpeechVoice(): SpeechSynthesisVoice | null {
+    if (!this.selectedSpeechVoiceName || !this.availableSpeechVoices.length) {
+      return null;
+    }
+
+    return this.availableSpeechVoices.find((voice) => voice.name === this.selectedSpeechVoiceName) || null;
+  }
+
+  private getBrowserSpecificVoiceSupportMessage(): string {
+    if (typeof navigator === 'undefined') {
+      return `Voice input is not supported in this browser. ${this.voiceSupportGuidance}`;
+    }
+
+    const ua = navigator.userAgent.toLowerCase();
+    const isFirefox = ua.includes('firefox');
+    const isSafari = ua.includes('safari') && !ua.includes('chrome') && !ua.includes('edg');
+
+    if (isFirefox) {
+      return 'Voice input is limited in Firefox for this app. Please use latest Chrome or Edge.';
+    }
+
+    if (isSafari) {
+      return 'Voice input may be limited in Safari. Please use latest Chrome or Edge for reliable microphone support.';
+    }
+
+    return `Voice input is not supported in this browser. ${this.voiceSupportGuidance}`;
   }
 
   private startThinkingCountdown() {
@@ -1029,7 +1184,9 @@ export class Chat implements AfterViewChecked, OnDestroy {
   private async startRecordingFlow() {
     const hasPermission = await this.ensureMicrophonePermission();
     if (!hasPermission) {
-      this.voiceErrorMessage = 'Microphone permission is required for Answer Now mode.';
+      this.voiceErrorMessage = this.micPermissionState === 'denied'
+        ? 'Microphone permission is required for Answer Now mode. Enable it in browser settings and try again.'
+        : 'Microphone access is unavailable in this browser context. Try latest Chrome or Edge on HTTPS.';
       return;
     }
 
@@ -1041,6 +1198,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   private async ensureMicrophonePermission(): Promise<boolean> {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       this.micPermissionState = 'denied';
+      this.voiceErrorMessage = 'Microphone APIs are unavailable in this browser. Try latest Chrome or Edge.';
       return false;
     }
 
@@ -1082,7 +1240,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
 
   private startRecording() {
     if (!this.speechSupported) {
-      this.voiceErrorMessage = 'Voice input is not supported in this browser.';
+      this.voiceErrorMessage = this.getBrowserSpecificVoiceSupportMessage();
       return;
     }
 
@@ -1154,6 +1312,12 @@ export class Chat implements AfterViewChecked, OnDestroy {
         if (code === 'not-allowed' || code === 'service-not-allowed') {
           this.micPermissionState = 'denied';
           this.voiceErrorMessage = 'Microphone access was denied. Please allow permission and try again.';
+        } else if (code === 'audio-capture') {
+          this.voiceErrorMessage = 'No microphone was found. Connect a microphone and try again.';
+        } else if (code === 'network') {
+          this.voiceErrorMessage = 'Voice recognition network error. Check connectivity and try again.';
+        } else if (code === 'language-not-supported') {
+          this.voiceErrorMessage = 'Voice language is not supported in this browser. Try latest Chrome or Edge.';
         } else if (code !== 'aborted') {
           this.voiceErrorMessage = 'Voice capture interrupted. Please try Answer Now again.';
         }
@@ -1428,8 +1592,19 @@ export class Chat implements AfterViewChecked, OnDestroy {
   }
 
   private updateAnswerMultilineState(textarea: HTMLTextAreaElement) {
-    const hasNewLine = (textarea.value || '').includes('\n');
-    const wrapsToMultipleLines = textarea.scrollHeight > 44;
+    const value = textarea.value || '';
+    if (!value.trim()) {
+      this.isAnswerMultiline = false;
+      return;
+    }
+
+    const hasNewLine = value.includes('\n');
+    const styles = typeof window !== 'undefined' ? window.getComputedStyle(textarea) : null;
+    const lineHeight = Number.parseFloat(styles?.lineHeight || '20') || 20;
+    const paddingTop = Number.parseFloat(styles?.paddingTop || '0') || 0;
+    const paddingBottom = Number.parseFloat(styles?.paddingBottom || '0') || 0;
+    const singleLineHeight = lineHeight + paddingTop + paddingBottom;
+    const wrapsToMultipleLines = textarea.scrollHeight > singleLineHeight + 1;
     this.isAnswerMultiline = hasNewLine || wrapsToMultipleLines;
   }
 
@@ -1450,6 +1625,11 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.speechStartTimeoutId = setTimeout(() => {
       this.speechStartTimeoutId = null;
       const utterance = new SpeechSynthesisUtterance(speechText);
+      const selectedVoice = this.getSelectedSpeechVoice();
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+      }
       utterance.rate = 0.95;
       utterance.pitch = 1;
       utterance.onend = () => {
