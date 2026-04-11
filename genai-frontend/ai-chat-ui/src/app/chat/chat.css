@@ -379,7 +379,7 @@
   border-radius: var(--radius-full);
 }
 
-@media (max-width: 980px) {
+@media (max-width: 760px) {
   .chat-wrapper {
     display: flex;
     flex-direction: column;

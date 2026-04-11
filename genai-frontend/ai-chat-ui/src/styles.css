@@ -272,7 +272,9 @@ body {
 }
 
 .intro-copy h3 {
-  margin-top: 0;
+  margin: 0 0 var(--spacing-sm);
+  font-size: 1.15rem;
+  line-height: 1.3;
 }
 
 .intro-copy p {
@@ -287,10 +289,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-  margin-top: var(--chat-settings-margin-top);
+  margin-top: 0;
   min-height: 0;
   flex: 1;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .settings-helper-text {
@@ -302,9 +304,9 @@ body {
 }
 
 .settings-scroll {
-  flex: none;
-  min-height: auto;
-  overflow: visible;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding-right: 0;
 }
 
@@ -316,31 +318,15 @@ body {
 
 .settings-bottom {
   flex-shrink: 0;
-  margin-top: 0;
+  margin-top: auto;
   background: var(--surface);
   padding-top: var(--spacing-xs);
 }
 
-@media (max-width: 980px) {
+@media (max-width: 760px) {
   .settings-panel {
     flex: none;
     min-height: auto;
-  }
-
-  .settings-bottom {
-    margin-top: var(--spacing-sm);
-  }
-}
-
-@media (min-width: 981px) {
-  .intro-panel {
-    position: sticky;
-    top: var(--spacing-md);
-    max-height: calc(100vh - var(--chat-header-offset-desktop) - (var(--spacing-md) * 2));
-    overflow: visible;
-  }
-
-  .settings-panel {
     overflow: visible;
   }
 
@@ -348,7 +334,41 @@ body {
     flex: none;
     min-height: auto;
     overflow: visible;
-    padding-right: 0;
+  }
+
+  .settings-bottom {
+    margin-top: var(--spacing-sm);
+  }
+}
+
+@media (min-width: 761px) {
+  .intro-panel {
+    position: sticky;
+    top: var(--spacing-md);
+    height: calc(100vh - var(--chat-header-offset-desktop) - (var(--spacing-md) * 2) - 58px);
+    overflow: hidden;
+    padding: var(--spacing-md);
+  }
+
+  .settings-panel {
+    overflow: hidden;
+  }
+
+  .settings-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .settings-scroll::-webkit-scrollbar {
+    display: none;
   }
 
   .settings-fields {
@@ -359,21 +379,62 @@ body {
     position: static;
     margin-top: auto;
     border-top: none;
+    padding-bottom: 4px;
   }
-}
 
-.settings-scroll::-webkit-scrollbar {
-  width: 6px;
-}
+  .intro-copy h3 {
+    font-size: 1.06rem;
+    line-height: 1.24;
+    margin-bottom: 6px;
+  }
 
-.settings-scroll::-webkit-scrollbar-thumb {
-  background: var(--chat-scrollbar-thumb);
-  border-radius: var(--radius-full);
-}
+  .settings-helper-text {
+    font-size: 0.82rem;
+    line-height: 1.28;
+    margin-bottom: 6px;
+  }
 
-.settings-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--chat-scrollbar-thumb) transparent;
+  .settings-panel {
+    gap: 6px;
+  }
+
+  .settings-fields {
+    gap: 6px;
+  }
+
+  .settings-panel label {
+    gap: 4px;
+    font-size: 0.82rem;
+  }
+
+  .settings-panel select,
+  .settings-panel input {
+    padding: 7px 10px;
+    border-radius: 10px;
+  }
+
+  .voice-question-toggle {
+    font-size: 0.82rem;
+  }
+
+  .interviewer-voice-toggle-btn {
+    padding: 4px 8px;
+    font-size: 0.74rem;
+  }
+
+  .settings-footer {
+    margin-top: 4px;
+  }
+
+  .settings-footer::before {
+    margin-bottom: 6px;
+  }
+
+  button.primary,
+  button.secondary {
+    font-size: 0.84rem;
+    padding: 6px 12px;
+  }
 }
 
 .voice-question-toggle {
