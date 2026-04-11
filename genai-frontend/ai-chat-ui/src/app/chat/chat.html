@@ -98,6 +98,28 @@
           </select>
         </label>
 
+        <div class="voice-question-toggle">
+          <span>Interviewer voice</span>
+          <button
+            type="button"
+            class="interviewer-voice-toggle-btn"
+            [class.on]="questionVoiceEnabled"
+            [class.off]="!questionVoiceEnabled"
+            (click)="toggleQuestionVoice()"
+            [title]="questionVoiceEnabled ? 'Interviewer voice on' : 'Interviewer voice off'"
+            aria-label="Toggle interviewer voice"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path *ngIf="questionVoiceEnabled" d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+              <path *ngIf="questionVoiceEnabled" d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+              <line *ngIf="!questionVoiceEnabled" x1="23" y1="9" x2="17" y2="15"></line>
+              <line *ngIf="!questionVoiceEnabled" x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+            <span>{{ questionVoiceEnabled ? 'On' : 'Off' }}</span>
+          </button>
+        </div>
+
         </div>
 
         <div class="settings-footer">
@@ -127,20 +149,97 @@
         </button>
       </div>
 
-      <div class="chat-input" *ngIf="!showRatingStep">
-        <div class="chat-answer-field" [class.answer-enabled]="canAnswerNow" [class.answer-disabled]="!canAnswerNow">
-          <textarea
-            #answerInput
-            [(ngModel)]="userInput"
-            placeholder="Type your response..."
-            [disabled]="!canAnswerNow"
-            (input)="autoResizeAnswer($event)"
-            (keydown)="onAnswerKeydown($event)"
-            rows="2"
-          ></textarea>
+      <div class="chat-input" *ngIf="!showRatingStep && isStartDisabled">
+        <div class="chat-composer">
+          <div class="chat-answer-field" [class.answer-enabled]="canAnswerNow" [class.answer-disabled]="!canAnswerNow" [class.voice-strip-mode]="voiceModeEnabled && isVoiceStripVisible" [class.has-inline-send]="hasAnswerText">
+            <ng-container *ngIf="!(voiceModeEnabled && isVoiceStripVisible); else voiceCaptureStrip">
+              <textarea
+                #answerInput
+                [(ngModel)]="userInput"
+                [placeholder]="voiceModeEnabled ? 'Type or use voice mode...' : 'Type your response...'"
+                [disabled]="!canAnswerNow"
+                (input)="autoResizeAnswer($event)"
+                (keydown)="onAnswerKeydown($event)"
+                rows="2"
+              ></textarea>
+
+              <button
+                *ngIf="speechSupported && voiceModeEnabled"
+                type="button"
+                class="mic-indicator"
+                [class.active]="isRecording"
+                [class.idle]="!isRecording"
+                [class.with-send]="hasAnswerText"
+                [class.multiline]="isAnswerMultiline"
+                [disabled]="!canAnswerNow || isAwaitingResponse"
+                (click)="onInlineMicClick()"
+                [title]="isRecording ? 'Recording in progress' : 'Start microphone now'"
+                aria-label="Microphone status"
+              >
+                <svg class="mic-indicator-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"></path>
+                  <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                  <line x1="12" y1="18" x2="12" y2="21"></line>
+                </svg>
+              </button>
+
+              <button
+                *ngIf="hasAnswerText"
+                type="button"
+                class="inline-send"
+                [class.multiline]="isAnswerMultiline"
+                [disabled]="!canAnswerNow"
+                (click)="sendMessage()"
+                title="Send answer"
+                aria-label="Send answer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </button>
+            </ng-container>
+
+            <ng-template #voiceCaptureStrip>
+              <div class="voice-capture-strip" [class.thinking]="isThinking" [class.recording]="isRecording">
+                <div class="voice-wave-area">
+                  <div class="voice-wave-track">
+                    <div class="voice-wave-line"></div>
+                    <span *ngFor="let level of waveLevels" [style.transform]="'scaleY(' + level + ')'" [style.opacity]="isRecording ? (0.35 + level * 0.45) : 0.45"></span>
+                  </div>
+                </div>
+
+                <div class="strip-actions">
+                  <button class="strip-plain" type="button" (click)="cancelVoiceCapture()" aria-label="Cancel voice capture">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                  <button class="strip-plain" type="button" (click)="submitVoiceCapture()" aria-label="Submit voice capture">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </ng-template>
+          </div>
+
+          <p class="voice-error" *ngIf="micPermissionState === 'denied' || voiceErrorMessage">
+            {{ micPermissionState === 'denied' ? 'Microphone permission is blocked. Enable it in browser settings and retry.' : voiceErrorMessage }}
+          </p>
         </div>
-        <button class="primary" [disabled]="!canAnswerNow" (click)="sendMessage()">Send</button>
-        <button class="secondary" [disabled]="!interviewStarted || isAwaitingResponse" (click)="endInterview()">End Interview</button>
+
+        <div class="composer-actions">
+          <button class="icon-action end-action" [disabled]="!interviewStarted || isAwaitingResponse" (click)="endInterview()" title="End interview" aria-label="End interview">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"></path>
+              <polyline points="14 16 20 12 14 8"></polyline>
+              <line x1="20" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="chat-input rating-step" *ngIf="showRatingStep">
@@ -162,10 +261,24 @@
             (keydown)="onSelfRatingKeydown($event)"
             (keydown.enter)="submitSelfRating()"
           />
-          <button class="primary" [disabled]="isSubmitRatingDisabled" (click)="submitSelfRating()">Submit Rating</button>
+          <button
+            type="button"
+            class="rating-submit-icon"
+            [disabled]="isSubmitRatingDisabled"
+            (click)="submitSelfRating()"
+            title="Submit rating"
+            aria-label="Submit rating"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
         </div>
         <p class="rating-validation-text" *ngIf="ratingValidationMessage">{{ ratingValidationMessage }}</p>
       </div>
+
+
     </section>
 
     <section *ngIf="showEndSummaryModal" class="summary-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">

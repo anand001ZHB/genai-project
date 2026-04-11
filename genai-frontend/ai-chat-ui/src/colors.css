@@ -266,4 +266,12 @@
   --chat-input-disabled-border: rgba(100, 116, 139, 0.45);
   --chat-input-disabled-text: rgba(148, 163, 184, 0.9);
   --chat-scrollbar-thumb: rgba(148, 163, 184, 0.45);
+  --chat-error-text: #fda4af;
+  --chat-transcript-filler-highlight-bg: rgba(251, 191, 36, 0.35);
+  --chat-modal-backdrop-bg: rgba(2, 6, 23, 0.62);
+  --chat-rating-invalid-border: #f87171;
+  --chat-rating-invalid-ring: rgba(248, 113, 113, 0.35);
+  --chat-rating-valid-border: #34d399;
+  --chat-rating-valid-ring: rgba(52, 211, 153, 0.35);
+  --chat-score-bar-highlight: #ffffff;
 }
