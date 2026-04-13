@@ -52,7 +52,6 @@ interface SpeechRecognitionLike {
 export class Chat implements AfterViewChecked, OnDestroy {
 
   @ViewChild('answerInput') answerInput?: ElementRef<HTMLTextAreaElement>;
-  @ViewChild('ratingInput') ratingInput?: ElementRef<HTMLTextAreaElement | HTMLInputElement>;
 
   private apiBaseUrl = this.resolveApiBaseUrl();
   private readonly ratingRangeValidationMessage = 'You can respond only in between 1 to 10.';
@@ -78,9 +77,8 @@ export class Chat implements AfterViewChecked, OnDestroy {
   messages: any[] = [];
   private messageIdCounter = 0;
   private pendingAnswerFocus = false;
-  private pendingRatingFocus = false;
   showScrollButton = false;
-  selectedTheme = 'theme-dark';
+  selectedTheme = 'theme-system';
   showEndSummaryModal = false;
   endNotice = '';
   voiceModeEnabled = true;
@@ -139,12 +137,8 @@ export class Chat implements AfterViewChecked, OnDestroy {
   };
   
   readonly themes = [
-    { class: 'theme-dark', label: 'Night' },
-    { class: 'theme-sky', label: 'Sky' },
-    { class: 'theme-lavender', label: 'Lavender' },
-    { class: 'theme-sage', label: 'Sage' },
-    { class: 'theme-rose', label: 'Rose' },
-    { class: 'theme-forest', label: 'Forest' },
+    { class: 'theme-system', label: 'System' },
+    { class: 'theme-dark', label: 'Dark' },
     { class: 'theme-light', label: 'Light' }
   ];
   currentThemeIndex = 0;
@@ -203,7 +197,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   }
 
   get hasSelectionChanges(): boolean {
-    return this.level !== 'easy' || this.experience !== '0-1 years' || this.topic !== 'JavaScript';
+    return this.level !== 'easy' || this.topic !== 'JavaScript';
   }
 
   get isResetDisabled(): boolean {
@@ -311,9 +305,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.messages = [];
     this.showEndSummaryModal = false;
     this.resetScoreSummary();
-    this.showRatingStep = true;
-    this.selfRating = '';
-    this.ratingValidationMessage = '';
     this.userInput = '';
     this.interviewStarted = false;
     this.isAnswerTurn = false;
@@ -324,42 +315,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.voiceErrorMessage = '';
     this.resetVoiceRuntime();
     this.resetAnswerInputHeight();
-    this.focusRatingInput();
 
-    // Ask for self-rating first
-    this.messages.push(
-      this.createMessage(
-        'ai',
-        'Great! Before we start, I\'d like to know how you rate yourself on a scale of 1-10 on the topic of <strong>' + this.topic + '</strong>. This will help me tailor the questions to your level.' +
-        '<div class="rating-scale-list">' +
-        '<div>1 = Beginner</div>' +
-        '<div>5 = Intermediate</div>' +
-        '<div>10 = Expert</div>' +
-        '</div>'
-      )
-    );
-
-  }
-
-  submitSelfRating() {
-    this.stopInterviewerSpeech();
-    this.stopRatingVoiceCapture();
-
-    if (!this.selfRating || this.selfRating.trim() === '') {
-      this.ratingValidationMessage = 'Please enter your rating before submitting.';
-      return;
-    }
-    
-    const rating = parseInt(this.selfRating);
-    if (rating < 1 || rating > 10) {
-      this.ratingValidationMessage = this.ratingRangeValidationMessage;
-      return;
-    }
-
-    this.ratingValidationMessage = '';
-
-    this.messages.push(this.createMessage('user', 'I rate myself as ' + rating + ' out of 10'));
-    this.showRatingStep = false;
     this.isAwaitingResponse = true;
     this.isAnswerTurn = false;
 
@@ -369,7 +325,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
       level: this.level,
       experience: this.experience,
       topic: this.topic,
-      selfRating: rating,
+      selfRating: 5,
     }).subscribe({
       next: (res) => {
         const message = res.message || res.reply || 'No response from interviewer.';
@@ -394,6 +350,11 @@ export class Chat implements AfterViewChecked, OnDestroy {
         this.scrollToMessageStart(aiMessage.id, 'smooth');
       }
     });
+  }
+
+  submitSelfRating() {
+    // Rating step is intentionally bypassed; start interview directly.
+    this.startInterview();
   }
 
   onSelfRatingInput(event: Event) {
@@ -626,12 +587,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
     }
   }
 
-  resetSelections() {
-    this.level = 'easy';
-    this.experience = '0-1 years';
-    this.topic = 'JavaScript';
-  }
-
   endInterview() {
     if (!this.interviewStarted) return;
 
@@ -697,7 +652,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.transcriptFinal = '';
     this.transcriptHighlightHtml = '';
     this.transcriptTips = [];
-    this.resetSelections();
     this.resetScoreSummary();
     this.resetAnswerInputHeight();
   }
@@ -858,20 +812,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
     }
   }
 
-  private focusRatingInput() {
-    this.pendingRatingFocus = true;
-
-    const input = this.ratingInput?.nativeElement;
-    if (!input) return;
-
-    setTimeout(() => {
-      input.focus();
-      const end = input.value.length;
-      input.setSelectionRange(end, end);
-      this.pendingRatingFocus = false;
-    }, 0);
-  }
-
   private getChatContainer(): HTMLElement | null {
     return document.querySelector('.chat-messages') as HTMLElement | null;
   }
@@ -1024,7 +964,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
         this.speakQuestionWithDelay(message);
 
         if (res?.ended) {
-          this.endNotice = 'Okay, ending the interview. Here is your summary.';
+          this.endNotice = res.message || 'Okay, ending the interview. Here is your summary.';
           this.interviewStarted = false;
           this.isAwaitingResponse = false;
           this.isAnswerTurn = false;
@@ -1701,16 +1641,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
   }
 
   ngAfterViewChecked() {
-    if (this.pendingRatingFocus && this.showRatingStep) {
-      const input = this.ratingInput?.nativeElement;
-      if (input) {
-        input.focus();
-        const end = input.value.length;
-        input.setSelectionRange(end, end);
-        this.pendingRatingFocus = false;
-      }
-    }
-
     if (this.pendingAnswerFocus && this.canAnswerNow) {
       this.tryFocusAnswerInput(4);
     }

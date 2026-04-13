@@ -140,3 +140,45 @@
   --theme-border: var(--light-theme-border);
 }
 
+.theme-system {
+  --bg: var(--dark-bg);
+  --panel: var(--dark-panel);
+  --surface: var(--dark-surface);
+  --border: var(--dark-border);
+  --text: var(--dark-text);
+  --muted: var(--dark-text-muted);
+  --input: var(--dark-input);
+  --button: var(--dark-button);
+  --button-text: var(--dark-button-text);
+  --button-hover: var(--dark-button-hover);
+  --bubble-user: var(--dark-bubble-user);
+  --bubble-ai: var(--dark-bubble-ai);
+  --code-bg: var(--dark-code-bg);
+  --input-placeholder: var(--dark-input-placeholder);
+  --secondary-border: var(--dark-border-secondary);
+  --theme-bg: var(--dark-theme-bg);
+  --theme-border: var(--dark-theme-border);
+}
+
+@media (prefers-color-scheme: light) {
+  .theme-system {
+    --bg: var(--light-bg);
+    --panel: var(--light-panel);
+    --surface: var(--light-surface);
+    --border: var(--light-border);
+    --text: var(--light-text);
+    --muted: var(--light-text-muted);
+    --input: var(--light-input);
+    --button: var(--light-button);
+    --button-text: var(--light-button-text);
+    --button-hover: var(--light-button-hover);
+    --bubble-user: var(--light-bubble-user);
+    --bubble-ai: var(--light-bubble-ai);
+    --code-bg: var(--light-code-bg);
+    --input-placeholder: var(--light-input-placeholder);
+    --secondary-border: var(--light-border-secondary);
+    --theme-bg: var(--light-theme-bg);
+    --theme-border: var(--light-theme-border);
+  }
+}
+

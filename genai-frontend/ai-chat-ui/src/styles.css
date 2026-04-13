@@ -34,7 +34,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-bottom: 58px;
+  padding-bottom: 46px;
   background: var(--bg);
   color: var(--text);
   font-family: Inter, system-ui, sans-serif;
@@ -56,7 +56,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 10px 16px;
+  padding: 7px 14px;
   font-size: 0.76rem;
   line-height: 1.3;
   color: var(--muted);
@@ -72,8 +72,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-lg) var(--spacing-xl);
+  gap: var(--spacing-md);
+  padding: 9px var(--spacing-xl);
   background: var(--panel);
   border-bottom: var(--chat-border-width) solid var(--border);
 }
@@ -176,6 +176,7 @@ body {
   }
 
   .chat-wrapper {
+    height: auto;
     padding-bottom: calc(var(--spacing-2xl) + 56px + env(safe-area-inset-bottom));
   }
 
@@ -202,10 +203,11 @@ body {
 .chat-wrapper {
   display: grid;
   grid-template-columns: var(--chat-sidebar-width) minmax(0, 1fr);
-  gap: var(--spacing-md);
+  gap: 8px;
   padding: var(--spacing-md);
   flex: 1;
   min-height: 0;
+  height: calc(100vh - var(--chat-header-offset-desktop) - 46px);
   overflow: visible;
 }
 
@@ -213,10 +215,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-  background: var(--surface);
+  background: var(--panel);
   border: var(--chat-border-width) solid var(--border);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
+  padding: 10px;
   min-height: 0;
   overflow: visible;
   box-shadow: var(--shadow-md);
@@ -226,10 +228,83 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 8px;
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  background: color-mix(in srgb, var(--surface) 94%, var(--bg) 6%);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, rgba(255, 255, 255, 0.2) 18%);
+  border-radius: 20px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+  padding: 10px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  min-height: 34px;
+  padding: 2px 0;
+}
+
+.panel-head h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+}
+
+.chat-panel-head {
+  border-bottom: var(--chat-border-width) solid color-mix(in srgb, var(--border) 78%, transparent);
+  padding-bottom: 6px;
+}
+
+.interview-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  min-width: 96px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--button) 52%, transparent);
+  background: var(--button);
+  color: var(--button-text);
+  font-size: 0.73rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: background 0.18s ease, opacity 0.18s ease;
+  box-shadow: none;
+}
+
+.interview-action-btn:hover:not(:disabled) {
+  background: var(--button-hover);
+  opacity: 0.92;
+}
+
+.interview-action-btn:active:not(:disabled) {
+  opacity: 0.82;
+}
+
+.interview-action-btn:disabled {
+  background: var(--control-disabled-bg);
+  color: color-mix(in srgb, var(--control-disabled-text) 72%, transparent);
+  border-color: var(--control-disabled-border);
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.58;
+  filter: saturate(0.72);
+}
+
+.interview-action-btn:disabled:hover {
+  background: var(--control-disabled-bg);
+  opacity: 0.58;
+}
+
+.panel-end-action {
+  min-width: 100px;
 }
 
 .chat-panel .chat-messages {
@@ -301,7 +376,7 @@ body {
 .settings-bottom {
   flex-shrink: 0;
   margin-top: auto;
-  background: var(--surface);
+  background: var(--panel);
   padding-top: var(--spacing-xs);
 }
 
@@ -325,15 +400,15 @@ body {
 
 @media (min-width: 761px) {
   .intro-panel {
-    position: sticky;
-    top: var(--spacing-md);
-    height: calc(100vh - var(--chat-header-offset-desktop) - (var(--spacing-md) * 2) - 58px);
-    overflow: hidden;
-    padding: var(--spacing-md);
+    position: static;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    padding: 10px;
   }
 
   .settings-panel {
-    overflow: hidden;
+    overflow: visible;
   }
 
   .settings-scroll {
@@ -871,6 +946,12 @@ body {
     flex-wrap: wrap;
   }
 
+  .panel-end-action {
+    min-width: 96px;
+    min-height: 28px;
+    padding: 0 10px;
+  }
+
   .chat-composer {
     width: 100%;
   }
@@ -975,7 +1056,7 @@ body {
 .settings-footer {
   margin-top: var(--spacing-sm);
   position: static;
-  background: var(--surface);
+  background: var(--panel);
 }
 
 .settings-footer::before {
@@ -1013,7 +1094,7 @@ button.secondary {
   border: var(--chat-border-width) solid var(--secondary-border);
 }
 
-button.primary:hover {
+button.primary:hover:not(:disabled) {
   background: var(--button-hover);
 }
 

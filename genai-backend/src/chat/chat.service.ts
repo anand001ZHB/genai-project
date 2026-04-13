@@ -25,6 +25,11 @@ interface SectionScores {
   output: number;
 }
 
+interface ConversationEntry {
+  role: 'interviewer' | 'candidate';
+  content: string;
+}
+
 interface InterviewSession {
   id: string;
   config: Required<InterviewConfig>;
@@ -34,6 +39,15 @@ interface InterviewSession {
   redirectAttemptsForCurrentQuestion: number;
   scoreTotals: SectionScores;
   scoreEntries: number;
+  history: ConversationEntry[];
+}
+
+interface InterviewTurnResponse {
+  rawText: string;
+  feedback: string;
+  decision: string;
+  nextQuestion: string;
+  isStructured: boolean;
 }
 
 @Injectable()
@@ -230,6 +244,23 @@ export class ChatService {
     return false;
   }
 
+  private formatRecentHistory(history: ConversationEntry[], maxEntries = 10): string {
+    if (!history || history.length === 0) return '';
+    const recent = history.slice(-maxEntries);
+    return recent
+      .map((e) => `${e.role === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${e.content}`)
+      .join('\n');
+  }
+
+  private appendHistory(session: InterviewSession, candidateMsg: string, interviewerMsg: string): void {
+    session.history.push({ role: 'candidate', content: candidateMsg });
+    session.history.push({ role: 'interviewer', content: interviewerMsg });
+    // keep last 20 entries (10 exchanges) to stay within token budget
+    if (session.history.length > 20) {
+      session.history = session.history.slice(-20);
+    }
+  }
+
   private summarizeUserSnippet(message: string, maxWords = 4): string {
     const words = (message || '')
       .toLowerCase()
@@ -349,7 +380,8 @@ export class ChatService {
     }
 
     const greetingOnlyRegex = /^(?:(?:hi|hello|hey|hola|good morning|good afternoon|good evening)(?:\s+(?:hi|hello|hey|hola|good morning|good afternoon|good evening|there|team|all|everyone|sir|madam|mam))*)$/i;
-    if (cleaned.length > 0 && greetingOnlyRegex.test(cleaned)) {
+    const acknowledgmentOnlyRegex = /^(?:ok|okay|alright|sure|got it|sounds good|understood|i see|noted|yep|yup|yeah|cool|great|nice|right|go on|go ahead|fine|hmm+|ah+|oh okay|oh ok|oh right|ok cool|ok sure|ok fine|ok alright)$/i;
+    if (cleaned.length > 0 && (greetingOnlyRegex.test(cleaned) || acknowledgmentOnlyRegex.test(cleaned))) {
       return 'greeting';
     }
 
@@ -403,6 +435,21 @@ export class ChatService {
       .trim();
 
     return { cleanedReply, scores };
+  }
+
+  private buildInterviewerMessage(response: InterviewTurnResponse): string {
+    if (!response?.isStructured) {
+      return response?.rawText || response?.feedback || 'No response from interviewer.';
+    }
+
+    const feedback = (response.feedback || '').trim();
+    const nextQuestion = (response.nextQuestion || '').trim();
+
+    if (feedback && nextQuestion) {
+      return `${feedback}\n\n${nextQuestion}`;
+    }
+
+    return feedback || nextQuestion || 'No response from interviewer.';
   }
 
   private getSummary(session: InterviewSession) {
@@ -497,28 +544,28 @@ export class ChatService {
   }
 
   private buildSystemPrompt() {
-    return `You are an experienced technical interviewer in a realistic one-on-one interview.
+    return `You are a real, experienced technical interviewer conducting a live 1-on-1 interview.
 
-Style rules:
-- Sound human, calm, and professional
-- Keep replies short (2-4 sentences usually)
-- No long explanations, no teaching mode, no model-answer dumps
-- No bullet lists unless explicitly requested
-- Avoid scripted/meta wording. Do not say phrases like "your message was" or "let's steer back".
+You MUST ALWAYS respond ONLY in valid JSON format:
 
-Interview rules:
-- Ask one focused question at a time
-- After a candidate answer, give brief natural feedback and move to the next/follow-up question
-- If the candidate response is off-topic, too vague, or casual, respond politely and guide them back to the current question
-- If they ask to repeat or clarify the question, rephrase it briefly and continue
+{
+  "feedback": "1-2 sentences of natural human speech — like a senior dev talking, not a teacher or chatbot",
+  "decision": "FOLLOW_UP | NEXT | CHANGE_TOPIC | REPEAT | END",
+  "nextQuestion": "next interview question"
+}
 
-Do not break character as interviewer.
+STRICT RULES:
+- ALWAYS include "nextQuestion" — never leave it empty
+- ALWAYS ask exactly ONE question
+- feedback must sound casual and human: "Got it.", "Sure.", "Fair enough.", "No worries." — short phrases before the question
+- NEVER use formal/robotic language in feedback: no "Kindly", no "That drifts from", no "Your response was"
+- NEVER quote back the candidate's exact words in quote marks inside feedback
+- Do NOT return plain text — JSON only
 `;
   }
 
   async getAIResponse(message: string) {
     console.log('Incoming message:', message);
-    console.log('API KEY:', process.env.GROQ_API_KEY);
 
     try {
       const response = await this.getOpenAIClient().chat.completions.create({
@@ -535,15 +582,45 @@ Do not break character as interviewer.
         ],
       });
 
-      console.log('OpenAI success');
+      const rawText = response.choices[0].message.content || '';
+
+      try {
+        const parsed = JSON.parse(rawText);
+
+        // 🔥 FIX 3 (ADD HERE)
+        if (!parsed.nextQuestion || parsed.nextQuestion.trim().length === 0) {
+          parsed.nextQuestion = "Can you explain this in more detail?";
+        }
+
+        return {
+          rawText,
+          feedback: parsed.feedback || '',
+          decision: parsed.decision || 'NEXT',
+          nextQuestion: parsed.nextQuestion,
+          isStructured: true,
+        };
+
+      } catch (err) {
+        console.warn('⚠️ JSON parse failed:', rawText);
+
+        return {
+          rawText,
+          feedback: rawText,
+          decision: 'NEXT',
+          nextQuestion: this.extractQuestion(rawText),
+          isStructured: false,
+        };
+      }
+
+    } catch (error) {
+      console.error('AI ERROR:', error);
 
       return {
-        reply: response.choices[0].message.content,
-      };
-    } catch (error) {
-      console.error('OpenAI ERROR:', error);
-      return {
-        reply: 'Something went wrong while fetching response.',
+        rawText: '',
+        feedback: 'Something went wrong.',
+        decision: 'NEXT',
+        nextQuestion: '',
+        isStructured: false,
       };
     }
   }
@@ -584,21 +661,7 @@ Do not break character as interviewer.
     const experience = config.experience || '0-1 years';
     const topic = config.topic || 'JavaScript';
     const selfRating = config.selfRating || 5;
-
-    const difficultyMap = {
-      1: 'very basic and fundamental',
-      2: 'basic with some gaps',
-      3: 'beginner level',
-      4: 'beginner approaching intermediate',
-      5: 'intermediate level',
-      6: 'intermediate with good knowledge',
-      7: 'advanced intermediate',
-      8: 'advanced level',
-      9: 'very advanced',
-      10: 'expert level'
-    };
-
-    const questionDifficulty = selfRating <= 3 ? 'beginner' : selfRating <= 6 ? 'intermediate' : 'advanced';
+    const questionDifficulty = level;
 
     const startPrompt = `Start a realistic technical interview with a candidate.
 
@@ -606,21 +669,15 @@ Setup:
 - Interview difficulty: ${level}
 - Candidate experience: ${experience}
 - Topic to be interviewed on: ${topic}
-- Candidate's self-rated skill level: ${selfRating}/10 (${difficultyMap[selfRating] || 'intermediate'})
-- Adjust question difficulty to ${questionDifficulty}
+- Ask the first question at ${questionDifficulty} level
 
-Greet them naturally in one short sentence using their self-rating context. Then immediately ask the first interview question on ${topic}.
-
-Tailor the question difficulty based on their self-rating:
-- If they rated 1-3: Ask a foundational question
-- If they rated 4-6: Ask an intermediate question
-- If they rated 7-10: Ask a challenging question
+Greet them naturally in one short sentence. Then immediately ask the first interview question on ${topic}.
 
 Keep it conversational and concise. Ask exactly ONE focused question.
 `;
 
-    const result = await this.getAIResponse(startPrompt);
-    const rawReply = result.reply || 'No response from interviewer.';
+    const aiResponse = await this.getAIResponse(startPrompt);
+    const rawReply = this.buildInterviewerMessage(aiResponse);
     const { cleanedReply } = this.extractRatingsAndCleanReply(rawReply);
     const message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
     const question = this.extractQuestion(message);
@@ -640,6 +697,7 @@ Keep it conversational and concise. Ask exactly ONE focused question.
       redirectAttemptsForCurrentQuestion: 0,
       scoreTotals: this.createEmptyScores(),
       scoreEntries: 0,
+      history: [{ role: 'interviewer', content: message }],
     };
 
     this.sessions.set(sessionId, session);
@@ -732,68 +790,168 @@ Keep it conversational and concise. Ask exactly ONE focused question.
     }
 
     const stuckAttempts = session.stuckAttemptsForCurrentQuestion;
+    const isUnclearResponse =
+      responseSignal === 'normal' &&
+      this.isVagueOrOffTopicInterruption(answer) &&
+      !this.isSubstantiveAnswer(answer) &&
+      !this.hasUncertaintyCue(answer);
 
-    if (responseSignal === 'greeting') {
-      const message = this.buildGreetingReply(question, session.greetingAttemptsForCurrentQuestion, answer);
-      return {
-        sessionId,
-        message,
-        question,
-        evaluation: null,
-        progress: {
-          responseSignal,
-          questionChanged: false,
-          stuckAttempts,
-        },
-        summary: this.getSummary(session),
-      };
-    }
+    // 🔥 MOVE ON AFTER 2 FAILS
+    if (responseSignal === 'dont_know' && stuckAttempts >= 2) {
 
-    if (responseSignal === 'normal' && this.isVagueOrOffTopicInterruption(answer) && !this.isSubstantiveAnswer(answer) && !this.hasUncertaintyCue(answer)) {
-      session.redirectAttemptsForCurrentQuestion += 1;
-      const message = this.buildOffTopicRedirectReply(question, session.redirectAttemptsForCurrentQuestion, answer);
+      const moveAheadPrompt = `You are a real interviewer in a live 1-on-1 interview.
 
-      return {
-        sessionId,
-        message,
-        question,
-        evaluation: null,
-        progress: {
-          responseSignal,
-          questionChanged: false,
-          stuckAttempts,
-        },
-        summary: this.getSummary(session),
-      };
-    }
-
-    session.redirectAttemptsForCurrentQuestion = 0;
-
-    if (responseSignal === 'move_on' || (responseSignal === 'dont_know' && stuckAttempts >= 2)) {
-      const moveAheadPrompt = `The candidate wants to move ahead in the interview.
-
-Current context:
-- Topic: ${topic}
-- Difficulty: ${level}
-- Experience: ${experience}
-
-Previous question (do not repeat or rephrase this):
+The candidate couldn't answer this question after multiple tries:
 "${question}"
 
-Candidate message:
-"${answer}"
+Topic: ${topic}
 
-Respond exactly like a real interviewer:
-- Acknowledge briefly in one natural sentence.
-- Ask ONE new question immediately.
-- The new question must be different from the previous one.
-- Do not ask the candidate to retry the previous question.
-- Do not provide hints or long explanations.
-- Keep it concise and human.
+Respond naturally — like a senior dev would in a real conversation:
+- One brief, human phrase acknowledging it (e.g. "No worries.", "That's okay.", "Fair enough.")
+- Then immediately ask a DIFFERENT question on the same topic — it must NOT be a rephrasing or follow-up of the above question
+- The new question should test a clearly different concept within ${topic}
+- Do NOT repeat, rephrase, or reference the previous question at all
+- Do NOT give hints or explanations
+
+Return JSON:
+{
+  "feedback": "one casual phrase, e.g. 'No worries, let's move on.'",
+  "decision": "NEXT",
+  "nextQuestion": "a new, unrelated question on a different concept within ${topic}"
+}`;
+
+      const aiResponse = await this.getAIResponse(moveAheadPrompt);
+      const rawReply = this.buildInterviewerMessage(aiResponse);
+      const { cleanedReply } = this.extractRatingsAndCleanReply(rawReply);
+      let message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
+      let nextQuestion = aiResponse.isStructured
+        ? (aiResponse.nextQuestion || '').trim()
+        : this.extractQuestion(message);
+
+      // fallback safety
+      if (!nextQuestion || nextQuestion.trim().length === 0) {
+        nextQuestion = 'Can we move to a different JavaScript concept now?';
+      }
+
+      if (!message.includes(nextQuestion)) {
+        message = `${message}\n\n${nextQuestion}`.trim();
+      }
+
+      // reset state
+      session.lastQuestion = nextQuestion;
+      session.stuckAttemptsForCurrentQuestion = 0;
+      session.greetingAttemptsForCurrentQuestion = 0;
+      session.redirectAttemptsForCurrentQuestion = 0;
+      this.appendHistory(session, answer, message);
+
+      return {
+        sessionId,
+        message,
+        question: nextQuestion,
+        evaluation: null,
+        progress: {
+          responseSignal,
+          questionChanged: true,
+          stuckAttempts: 0,
+        },
+        summary: this.getSummary(session),
+      };
+    }
+
+    if (isUnclearResponse) {
+      session.redirectAttemptsForCurrentQuestion += 1;
+    } else if (responseSignal !== 'greeting') {
+      session.redirectAttemptsForCurrentQuestion = 0;
+    }
+
+    if (isUnclearResponse) {
+      const unclearAttemptCount = session.redirectAttemptsForCurrentQuestion;
+
+      if (unclearAttemptCount >= 2) {
+        const summary = this.getSummary(session);
+        this.sessions.delete(sessionId);
+
+        return {
+          sessionId,
+          ended: true,
+          message: 'I am still not able to understand your response, so I am ending this interview for now. Please restart when you are ready.',
+          question: '',
+          evaluation: null,
+          progress: {
+            responseSignal,
+            questionChanged: false,
+            stuckAttempts,
+          },
+          summary,
+        };
+      }
+
+      const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your answer?';
+      const message = `I could not fully understand what you meant. Could you rephrase your answer in one clear sentence?\n\n${safeQuestion}`;
+      this.appendHistory(session, answer, message);
+
+      return {
+        sessionId,
+        message,
+        question: safeQuestion,
+        evaluation: null,
+        progress: {
+          responseSignal,
+          questionChanged: false,
+          stuckAttempts,
+        },
+        summary: this.getSummary(session),
+      };
+    }
+
+    if (responseSignal === 'greeting') {
+      const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your answer?';
+      const repeatCount = session.greetingAttemptsForCurrentQuestion;
+      let message = '';
+
+      if (repeatCount <= 1) {
+        message = `I asked a question. Please answer it in your own words, or say "move on" if you want to skip.\n\n${safeQuestion}`;
+      } else if (repeatCount === 2) {
+        message = `Still waiting for your answer. Give your best attempt in 1-2 lines, or say "move on".\n\n${safeQuestion}`;
+      } else {
+        message = `You are replying with acknowledgments only. Please either answer now, or type "move on" and I will switch the question.\n\n${safeQuestion}`;
+      }
+
+      this.appendHistory(session, answer, message);
+
+      return {
+        sessionId,
+        message,
+        question: safeQuestion,
+        evaluation: null,
+        progress: {
+          responseSignal,
+          questionChanged: false,
+          stuckAttempts,
+        },
+        summary: this.getSummary(session),
+      };
+    }
+
+    if (responseSignal === 'move_on' || (responseSignal === 'dont_know' && stuckAttempts >= 2)) {
+      const moveAheadPrompt = `You are a real interviewer in a live 1-on-1 interview.
+
+The candidate wants to skip or move on.
+
+Topic: ${topic} | Difficulty: ${level}
+
+Previous question (do NOT repeat, rephrase, or reference this):
+"${question}"
+
+Respond like a real senior dev — brief and natural:
+- One short acknowledgment (e.g. "Sure.", "Got it.", "No problem.")
+- Then immediately ask a DIFFERENT question that tests a different concept within ${topic}
+- The new question must have no relation to the previous one
+- Keep it casual and direct
 `;
 
-      const result = await this.getAIResponse(moveAheadPrompt);
-      const rawReply = result.reply || 'No response from interviewer.';
+      const aiResponse = await this.getAIResponse(moveAheadPrompt);
+      const rawReply = this.buildInterviewerMessage(aiResponse);
       const { cleanedReply, scores } = this.extractRatingsAndCleanReply(rawReply);
       const message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
       const nextQuestion = this.extractQuestion(message);
@@ -813,6 +971,7 @@ Respond exactly like a real interviewer:
         session.greetingAttemptsForCurrentQuestion = 0;
         session.redirectAttemptsForCurrentQuestion = 0;
       }
+      this.appendHistory(session, answer, message);
 
       return {
         sessionId,
@@ -828,50 +987,73 @@ Respond exactly like a real interviewer:
       };
     }
 
-    const prompt = `You are conducting an interview turn.
+    const greetingCount = session.greetingAttemptsForCurrentQuestion;
+    const redirectCount = session.redirectAttemptsForCurrentQuestion;
+    const recentHistory = this.formatRecentHistory(session.history);
 
-Current interview context:
-- Topic: ${topic}
-- Difficulty: ${level}
-- Experience: ${experience}
+    const prompt = `You are a real, experienced technical interviewer in a live 1-on-1 conversation.
 
-Current question asked to candidate:
+Topic: ${topic} | Difficulty: ${level}
+${recentHistory ? `\nConversation so far:\n${recentHistory}\n` : ''}
+Current question you asked:
 "${question}"
 
-Candidate's latest message:
+Candidate's latest reply:
 "${answer}"
 
-Detected candidate intent:
-- responseSignal: ${responseSignal}
-- stuckAttemptsOnCurrentQuestion: ${stuckAttempts}
+Candidate state: signal=${responseSignal}${stuckAttempts > 0 ? `, stuck=${stuckAttempts}` : ''}${greetingCount > 0 ? `, greeting_repeat=${greetingCount}` : ''}${isUnclearResponse ? ', off_topic=true' : ''}
 
-Respond like a real interviewer using these rules:
-- If the candidate gave a relevant answer: give short feedback (1-2 sentences) and ask one follow-up or next question.
-- If responseSignal is greeting: greet back naturally in one short sentence, then continue the interview by asking the current question.
-- If the candidate message is off-topic/casual/small-talk: acknowledge briefly and return to the current question in a natural way.
-- If the candidate asks for clarification/repeat: rephrase the same question briefly.
-- If responseSignal is move_on: acknowledge briefly and move to a new question immediately (no hint).
-- If responseSignal is dont_know and stuckAttemptsOnCurrentQuestion is 1: give one tiny hint (one sentence max) and ask them to try once.
-- If responseSignal is dont_know and stuckAttemptsOnCurrentQuestion is 2 or more: acknowledge and move to a new question immediately without another hint.
-- For relevant answers, also include section-wise ratings out of 10 in one compact line using this exact label format:
-  Section ratings (/10): Theory: X | Coding: X | Scenario: X | Output: X
-- Derive the four section ratings from the candidate's latest response quality (0-10 each).
+Respond exactly as a real senior developer would in a live interview — natural, brief, and human.
+Use the conversation history above to make your response feel continuous and contextually relevant.
 
-Critical constraints:
-- Do NOT provide full answers or long explanations.
-- Do NOT produce long educational content.
-- Keep it concise and human (3-5 short sentences including the ratings line).
-- Do NOT quote the candidate's exact message unless they asked you to repeat it.
-- Never use phrasing like "your message", "your response was", or "you said" in a meta/robotic way.
-- Speak like a person in a live interview conversation.
-- End with one clear interviewer question.
+Rules by situation:
+- Substantive answer → brief acknowledgment (1 sentence) + one follow-up or new question
+- signal=dont_know, stuck=1 → one short nudge that reframes the question differently (NOT a lesson), then ask the same question in completely different words
+- signal=dont_know, stuck≥2 → one phrase like "Fair enough." then immediately ask a BRAND NEW question on the same topic — NOT the same question, NOT a rephrasing of it
+- signal=greeting (includes "ok", "okay", "alright", "sure", "got it", "yeah" etc.) → one casual phrase (e.g. "Go ahead.") then restate the current question in naturally different words — do NOT copy it verbatim from history
+- signal=move_on → one casual acknowledgment then a DIFFERENT question — never repeat or rephrase anything from the last 2–3 exchanges in the history
+- Candidate asked for clarification (e.g. "what?", "didn't get you", "can you repeat", "I didn't understand") → look at your last message in the conversation history and rephrase that specific thing much more simply
+- Off-topic or vague (off_topic=true) → one word like "Sure." then restate the question in different words (not a copy)
+
+Tone (critical):
+- Sound like a person, NOT a chatbot or a teacher
+- Short: 1–2 sentences max before the question
+- Use casual phrases: "Got it.", "Sure.", "Fair enough.", "No worries.", "Alright."
+- NEVER say: "Kindly", "That drifts from", "Your response was", "I notice that", "Let us focus on"
+- NEVER quote back the candidate's exact words in quotation marks
+- NEVER give lectures or multi-step explanations
+- Always end with exactly ONE question
+
+For substantive answers only, add this line at the end:
+Section ratings (/10): Theory: X | Coding: X | Scenario: X | Output: X
 `;
 
-    const result = await this.getAIResponse(prompt);
-    const rawReply = result.reply || 'No response from interviewer.';
-    const { cleanedReply, scores } = this.extractRatingsAndCleanReply(rawReply);
-    const message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
-    const nextQuestion = this.extractQuestion(message);
+
+    const aiResponse = await this.getAIResponse(prompt);
+
+    // Build the full message: feedback + nextQuestion combined
+    const rawReply = this.buildInterviewerMessage(aiResponse);
+    const { cleanedReply, scores: parsedScores } = this.extractRatingsAndCleanReply(rawReply);
+    let message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
+    let nextQuestion = aiResponse.isStructured
+      ? (aiResponse.nextQuestion || '').trim()
+      : this.extractQuestion(message);
+
+    // fallback safety
+    if (!nextQuestion || nextQuestion.trim().length === 0) {
+      nextQuestion = "Can you explain this in more detail?";
+    }
+    let scores: SectionScores | null = parsedScores;
+
+    //  Decision handling
+    if (aiResponse.decision === 'END') {
+      return this.endInterview(sessionId);
+    }
+
+    if (aiResponse.decision === 'REPEAT') {
+      nextQuestion = session.lastQuestion;
+    }
+
     const questionChanged = nextQuestion !== session.lastQuestion;
 
     if (scores && shouldCaptureScore) {
@@ -888,6 +1070,8 @@ Critical constraints:
       session.greetingAttemptsForCurrentQuestion = 0;
       session.redirectAttemptsForCurrentQuestion = 0;
     }
+
+    this.appendHistory(session, answer, message);
 
     return {
       sessionId,
