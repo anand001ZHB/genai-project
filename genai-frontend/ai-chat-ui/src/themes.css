@@ -20,106 +20,6 @@
   --theme-border: var(--dark-theme-border);
 }
 
-.theme-sky {
-  --bg: var(--sky-bg);
-  --panel: var(--sky-panel);
-  --surface: var(--sky-surface);
-  --border: var(--sky-border);
-  --text: var(--sky-text);
-  --muted: var(--sky-text-muted);
-  --input: var(--sky-input);
-  --button: var(--sky-button);
-  --button-text: var(--sky-button-text);
-  --button-hover: var(--sky-button-hover);
-  --bubble-user: var(--sky-bubble-user);
-  --bubble-ai: var(--sky-bubble-ai);
-  --code-bg: var(--sky-code-bg);
-  --input-placeholder: var(--sky-input-placeholder);
-  --secondary-border: var(--sky-border-secondary);
-  --theme-bg: var(--sky-theme-bg);
-  --theme-border: var(--sky-theme-border);
-}
-
-.theme-lavender {
-  --bg: var(--lavender-bg);
-  --panel: var(--lavender-panel);
-  --surface: var(--lavender-surface);
-  --border: var(--lavender-border);
-  --text: var(--lavender-text);
-  --muted: var(--lavender-text-muted);
-  --input: var(--lavender-input);
-  --button: var(--lavender-button);
-  --button-text: var(--lavender-button-text);
-  --button-hover: var(--lavender-button-hover);
-  --bubble-user: var(--lavender-bubble-user);
-  --bubble-ai: var(--lavender-bubble-ai);
-  --code-bg: var(--lavender-code-bg);
-  --input-placeholder: var(--lavender-input-placeholder);
-  --secondary-border: var(--lavender-border-secondary);
-  --theme-bg: var(--lavender-theme-bg);
-  --theme-border: var(--lavender-theme-border);
-}
-
-.theme-sage {
-  --bg: var(--sage-bg);
-  --panel: var(--sage-panel);
-  --surface: var(--sage-surface);
-  --border: var(--sage-border);
-  --text: var(--sage-text);
-  --muted: var(--sage-text-muted);
-  --input: var(--sage-input);
-  --button: var(--sage-button);
-  --button-text: var(--sage-button-text);
-  --button-hover: var(--sage-button-hover);
-  --bubble-user: var(--sage-bubble-user);
-  --bubble-ai: var(--sage-bubble-ai);
-  --code-bg: var(--sage-code-bg);
-  --input-placeholder: var(--sage-input-placeholder);
-  --secondary-border: var(--sage-border-secondary);
-  --theme-bg: var(--sage-theme-bg);
-  --theme-border: var(--sage-theme-border);
-}
-
-.theme-rose {
-  --bg: var(--rose-bg);
-  --panel: var(--rose-panel);
-  --surface: var(--rose-surface);
-  --border: var(--rose-border);
-  --text: var(--rose-text);
-  --muted: var(--rose-text-muted);
-  --input: var(--rose-input);
-  --button: var(--rose-button);
-  --button-text: var(--rose-button-text);
-  --button-hover: var(--rose-button-hover);
-  --bubble-user: var(--rose-bubble-user);
-  --bubble-ai: var(--rose-bubble-ai);
-  --code-bg: var(--rose-code-bg);
-  --input-placeholder: var(--rose-input-placeholder);
-  --secondary-border: var(--rose-border-secondary);
-  --theme-bg: var(--rose-theme-bg);
-  --theme-border: var(--rose-theme-border);
-}
-
-.theme-forest {
-  --bg: var(--forest-bg);
-  --panel: var(--forest-panel);
-  --surface: var(--forest-surface);
-  --border: var(--forest-border);
-  --text: var(--forest-text);
-  --muted: var(--forest-text-muted);
-  --input: var(--forest-input);
-  --button: var(--forest-button);
-  --button-text: var(--forest-button-text);
-  --button-hover: var(--forest-button-hover);
-  --bubble-user: var(--forest-bubble-user);
-  --bubble-ai: var(--forest-bubble-ai);
-  --code-bg: var(--forest-code-bg);
-  --input-placeholder: var(--forest-input-placeholder);
-  --secondary-border: var(--forest-border-secondary);
-  --theme-bg: var(--forest-theme-bg);
-  --theme-border: var(--forest-theme-border);
-}
-
 .theme-light {
   --bg: var(--light-bg);
   --panel: var(--light-panel);
@@ -138,6 +38,9 @@
   --secondary-border: var(--light-border-secondary);
   --theme-bg: var(--light-theme-bg);
   --theme-border: var(--light-theme-border);
+  --control-disabled-bg: var(--light-control-disabled-bg);
+  --control-disabled-text: var(--light-control-disabled-text);
+  --control-disabled-border: var(--light-control-disabled-border);
 }
 
 .theme-system {
@@ -179,6 +82,9 @@
     --secondary-border: var(--light-border-secondary);
     --theme-bg: var(--light-theme-bg);
     --theme-border: var(--light-theme-border);
+    --control-disabled-bg: var(--light-control-disabled-bg);
+    --control-disabled-text: var(--light-control-disabled-text);
+    --control-disabled-border: var(--light-control-disabled-border);
   }
 }
 

@@ -999,6 +999,11 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.speechSupported = !!speechCtor;
     this.ttsSupported = 'speechSynthesis' in window;
 
+    // Always initialize TTS voices early — independent of mic/recognition support
+    if (this.ttsSupported) {
+      this.initializeSpeechVoices();
+    }
+
     const hasMediaDevices = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
     const secureContext = !!window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -1021,7 +1026,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
     }
 
     if (this.ttsSupported) {
-      this.initializeSpeechVoices();
       this.stopInterviewerSpeech();
     }
   }
@@ -1564,6 +1568,10 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.isSpeakingQuestion = true;
     this.speechStartTimeoutId = setTimeout(() => {
       this.speechStartTimeoutId = null;
+      // If voices haven't loaded yet (common on mobile), try refreshing now
+      if (!this.selectedSpeechVoiceName) {
+        this.refreshSpeechVoices();
+      }
       const utterance = new SpeechSynthesisUtterance(speechText);
       const selectedVoice = this.getSelectedSpeechVoice();
       if (selectedVoice) {
@@ -1578,6 +1586,10 @@ export class Chat implements AfterViewChecked, OnDestroy {
       utterance.onerror = () => {
         this.isSpeakingQuestion = false;
       };
+      // iOS requires resume() if the audio session was interrupted
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
       window.speechSynthesis.speak(utterance);
     }, 700);
   }

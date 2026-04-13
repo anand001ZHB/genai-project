@@ -671,9 +671,9 @@ Setup:
 - Topic to be interviewed on: ${topic}
 - Ask the first question at ${questionDifficulty} level
 
-Greet them naturally in one short sentence. Then immediately ask the first interview question on ${topic}.
+Begin with a single brief professional welcome sentence (e.g. "Welcome, let's get started." or "Good to have you here."). Do NOT use casual or filler phrases such as "no worries", "dive right in", "sure thing", or "no problem". Then immediately ask the first interview question on ${topic}.
 
-Keep it conversational and concise. Ask exactly ONE focused question.
+Keep it concise. Ask exactly ONE focused question.
 `;
 
     const aiResponse = await this.getAIResponse(startPrompt);

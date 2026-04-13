@@ -137,7 +137,24 @@
 }
 
 .message.ai .bubble > div {
-  white-space: pre-line;
+  white-space: normal;
+}
+
+.message.ai .bubble p,
+.message.ai .bubble ul,
+.message.ai .bubble ol,
+.message.ai .bubble li,
+.message.ai .bubble h1,
+.message.ai .bubble h2,
+.message.ai .bubble h3,
+.message.ai .bubble h4 {
+  margin: 0;
+}
+
+.message.ai .bubble p + p,
+.message.ai .bubble p + ul,
+.message.ai .bubble p + ol {
+  margin-top: 0.35em;
 }
 
 .message.user .bubble > div {

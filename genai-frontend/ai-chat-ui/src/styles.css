@@ -303,6 +303,28 @@ body {
   opacity: 0.58;
 }
 
+.theme-light .interview-action-btn:disabled {
+  color: var(--control-disabled-text);
+  opacity: 0.9;
+  filter: none;
+}
+
+.theme-light .interview-action-btn:disabled:hover {
+  opacity: 0.9;
+}
+
+@media (prefers-color-scheme: light) {
+  .theme-system .interview-action-btn:disabled {
+    color: var(--control-disabled-text);
+    opacity: 0.9;
+    filter: none;
+  }
+
+  .theme-system .interview-action-btn:disabled:hover {
+    opacity: 0.9;
+  }
+}
+
 .panel-end-action {
   min-width: 100px;
 }
@@ -699,27 +721,7 @@ body {
 .theme-light .send-action,
 .theme-light .inline-send,
 .theme-light .mic-indicator,
-.theme-light .strip-plain,
-.theme-sky .end-action,
-.theme-sky .send-action,
-.theme-sky .inline-send,
-.theme-sky .mic-indicator,
-.theme-sky .strip-plain,
-.theme-lavender .end-action,
-.theme-lavender .send-action,
-.theme-lavender .inline-send,
-.theme-lavender .mic-indicator,
-.theme-lavender .strip-plain,
-.theme-sage .end-action,
-.theme-sage .send-action,
-.theme-sage .inline-send,
-.theme-sage .mic-indicator,
-.theme-sage .strip-plain,
-.theme-rose .end-action,
-.theme-rose .send-action,
-.theme-rose .inline-send,
-.theme-rose .mic-indicator,
-.theme-rose .strip-plain {
+.theme-light .strip-plain {
   border-color: color-mix(in srgb, var(--text) 28%, var(--border) 72%);
   background: color-mix(in srgb, var(--surface) 92%, #cbd5e1 8%);
 }
@@ -728,27 +730,7 @@ body {
 .theme-light .send-action:hover:not(:disabled),
 .theme-light .inline-send:hover:not(:disabled),
 .theme-light .mic-indicator:hover:not(:disabled),
-.theme-light .strip-plain:hover,
-.theme-sky .end-action:hover:not(:disabled),
-.theme-sky .send-action:hover:not(:disabled),
-.theme-sky .inline-send:hover:not(:disabled),
-.theme-sky .mic-indicator:hover:not(:disabled),
-.theme-sky .strip-plain:hover,
-.theme-lavender .end-action:hover:not(:disabled),
-.theme-lavender .send-action:hover:not(:disabled),
-.theme-lavender .inline-send:hover:not(:disabled),
-.theme-lavender .mic-indicator:hover:not(:disabled),
-.theme-lavender .strip-plain:hover,
-.theme-sage .end-action:hover:not(:disabled),
-.theme-sage .send-action:hover:not(:disabled),
-.theme-sage .inline-send:hover:not(:disabled),
-.theme-sage .mic-indicator:hover:not(:disabled),
-.theme-sage .strip-plain:hover,
-.theme-rose .end-action:hover:not(:disabled),
-.theme-rose .send-action:hover:not(:disabled),
-.theme-rose .inline-send:hover:not(:disabled),
-.theme-rose .mic-indicator:hover:not(:disabled),
-.theme-rose .strip-plain:hover {
+.theme-light .strip-plain:hover {
   border-color: color-mix(in srgb, var(--button) 62%, #0f172a 38%);
   background: color-mix(in srgb, var(--surface) 82%, var(--button) 18%);
 }
@@ -765,19 +747,11 @@ body {
   border: none;
 }
 
-.theme-light .voice-wave-line,
-.theme-sky .voice-wave-line,
-.theme-lavender .voice-wave-line,
-.theme-sage .voice-wave-line,
-.theme-rose .voice-wave-line {
+.theme-light .voice-wave-line {
   border-top-color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 
-.theme-light .voice-wave-track span,
-.theme-sky .voice-wave-track span,
-.theme-lavender .voice-wave-track span,
-.theme-sage .voice-wave-track span,
-.theme-rose .voice-wave-track span {
+.theme-light .voice-wave-track span {
   background: color-mix(in srgb, var(--button) 68%, var(--text) 32%);
 }
 
