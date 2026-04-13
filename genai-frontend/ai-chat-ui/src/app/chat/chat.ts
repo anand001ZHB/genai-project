@@ -78,6 +78,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   private messageIdCounter = 0;
   private pendingAnswerFocus = false;
   showScrollButton = false;
+  isSetupPanelVisible = true;
   selectedTheme = 'theme-system';
   showEndSummaryModal = false;
   endNotice = '';
@@ -186,6 +187,47 @@ export class Chat implements AfterViewChecked, OnDestroy {
     if (!this.questionVoiceEnabled) {
       this.stopInterviewerSpeech();
     }
+  }
+
+  toggleSetupPanel() {
+    this.isSetupPanelVisible = !this.isSetupPanelVisible;
+  }
+
+  onChatCopy(event: ClipboardEvent) {
+    if (this.isSelectionInsideAiMessage(event.target as Node | null)) {
+      event.preventDefault();
+    }
+  }
+
+  onChatCut(event: ClipboardEvent) {
+    if (this.isSelectionInsideAiMessage(event.target as Node | null)) {
+      event.preventDefault();
+    }
+  }
+
+  private isSelectionInsideAiMessage(targetNode: Node | null): boolean {
+    if (typeof window === 'undefined') return false;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return this.nodeInAiMessage(targetNode);
+    }
+
+    for (let i = 0; i < selection.rangeCount; i += 1) {
+      const range = selection.getRangeAt(i);
+      if (this.nodeInAiMessage(range.startContainer) || this.nodeInAiMessage(range.endContainer)) {
+        return true;
+      }
+    }
+
+    return this.nodeInAiMessage(targetNode);
+  }
+
+  private nodeInAiMessage(node: Node | null): boolean {
+    if (!node) return false;
+
+    const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+    return !!element?.closest('.message.ai');
   }
 
   get canAnswerNow(): boolean {

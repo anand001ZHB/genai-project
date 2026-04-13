@@ -564,6 +564,34 @@ STRICT RULES:
 `;
   }
 
+  private tryParseStructuredPayload(rawText: string): any | null {
+    const text = (rawText || '').trim();
+    if (!text) return null;
+
+    const normalized = text
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    try {
+      return JSON.parse(normalized);
+    } catch {
+      const firstBrace = normalized.indexOf('{');
+      const lastBrace = normalized.lastIndexOf('}');
+      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+        return null;
+      }
+
+      const candidate = normalized.slice(firstBrace, lastBrace + 1);
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        return null;
+      }
+    }
+  }
+
   async getAIResponse(message: string) {
     console.log('Incoming message:', message);
 
@@ -585,7 +613,10 @@ STRICT RULES:
       const rawText = response.choices[0].message.content || '';
 
       try {
-        const parsed = JSON.parse(rawText);
+        const parsed = this.tryParseStructuredPayload(rawText);
+        if (!parsed) {
+          throw new Error('Invalid JSON payload');
+        }
 
         // 🔥 FIX 3 (ADD HERE)
         if (!parsed.nextQuestion || parsed.nextQuestion.trim().length === 0) {
@@ -912,9 +943,26 @@ Return JSON:
       if (repeatCount <= 1) {
         message = `I asked a question. Please answer it in your own words, or say "move on" if you want to skip.\n\n${safeQuestion}`;
       } else if (repeatCount === 2) {
-        message = `Still waiting for your answer. Give your best attempt in 1-2 lines, or say "move on".\n\n${safeQuestion}`;
+        message = `Saying "hello" repeatedly will not help in an interview. Please answer the question now, or type "move on" to skip.\n\n${safeQuestion}`;
+      } else if (repeatCount === 3) {
+        message = `This is your final reminder: please answer the question instead of repeating greetings. If you continue, I will end this interview.\n\n${safeQuestion}`;
       } else {
-        message = `You are replying with acknowledgments only. Please either answer now, or type "move on" and I will switch the question.\n\n${safeQuestion}`;
+        const summary = this.getSummary(session);
+        this.sessions.delete(sessionId);
+
+        return {
+          sessionId,
+          ended: true,
+          message: 'I am ending this interview because you are repeatedly not coordinating with the interview flow. Please restart when you are ready to answer questions.',
+          question: '',
+          evaluation: null,
+          progress: {
+            responseSignal,
+            questionChanged: false,
+            stuckAttempts,
+          },
+          summary,
+        };
       }
 
       this.appendHistory(session, answer, message);

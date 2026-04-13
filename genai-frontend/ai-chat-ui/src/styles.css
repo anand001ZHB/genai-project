@@ -211,6 +211,10 @@ body {
   overflow: visible;
 }
 
+.chat-wrapper.setup-hidden {
+  grid-template-columns: 44px minmax(0, 1fr);
+}
+
 .intro-panel {
   display: flex;
   flex-direction: column;
@@ -222,6 +226,29 @@ body {
   min-height: 0;
   overflow: visible;
   box-shadow: var(--shadow-md);
+}
+
+.intro-panel.collapsed {
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px 6px;
+  overflow: hidden;
+}
+
+.intro-panel.collapsed .panel-head {
+  min-height: 0;
+  padding: 0;
+}
+
+.intro-panel.collapsed .settings-panel {
+  display: none;
+}
+
+.setup-collapsed-rail {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-top: 2px;
 }
 
 .chat-panel {
@@ -246,6 +273,28 @@ body {
   gap: var(--spacing-sm);
   min-height: 34px;
   padding: 2px 0;
+}
+
+.panel-toggle-icon-btn {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0;
+  border: var(--chat-border-width) solid color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.panel-toggle-icon-btn:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--button) 52%, var(--border) 48%);
+  background: color-mix(in srgb, var(--surface) 82%, var(--button) 18%);
 }
 
 .panel-head h4 {

@@ -136,6 +136,12 @@
   max-width: min(64%, 760px);
 }
 
+.message.ai .bubble,
+.message.ai .bubble * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .message.ai .bubble > div {
   white-space: normal;
 }
