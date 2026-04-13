@@ -30,23 +30,23 @@
   --dark-theme-border: rgba(255, 255, 255, 0.12);
 
   /* ===== LIGHT THEME COLORS ===== */
-  --light-bg: #efefef;
-  --light-panel: #e3e3e3;
-  --light-surface: #f5f5f5;
+  --light-bg: #f6f7f9;
+  --light-panel: #f1f3f6;
+  --light-surface: #f8f9fb;
   --light-text: #0f172a;
   --light-text-muted: #475569;
-  --light-input: #edf0f3;
+  --light-input: #f3f5f8;
   --light-button: #2563EB;
   --light-button-hover: #3b82f6;
   --light-button-text: #ffffff;
-  --light-border: rgba(148, 163, 184, 0.45);
+  --light-border: rgba(148, 163, 184, 0.28);
   --light-border-secondary: rgba(71, 85, 105, 0.4);
-  --light-bubble-user: #e2e8f0;
-  --light-bubble-ai: #e2e8f0;
-  --light-code-bg: #e0e7ff;
+  --light-bubble-user: #edf1f6;
+  --light-bubble-ai: #edf1f6;
+  --light-code-bg: #e9eefb;
   --light-input-placeholder: #95a3b3;
-  --light-theme-bg: rgba(255, 255, 255, 0.24);
-  --light-theme-border: rgba(148, 163, 184, 0.45);
+  --light-theme-bg: rgba(255, 255, 255, 0.52);
+  --light-theme-border: rgba(148, 163, 184, 0.3);
   --light-control-disabled-bg: #e2e8f0;
   --light-control-disabled-text: #64748b;
   --light-control-disabled-border: rgba(148, 163, 184, 0.7);
