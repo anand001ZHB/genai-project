@@ -21,6 +21,18 @@
           </option>
         </select>
       </label>
+
+      <button 
+        type="button" 
+        class="sound-toggle-btn" 
+        [class.sound-off]="!soundEnabled" 
+        (click)="toggleSound()"
+        aria-label="Toggle sound on/off"
+        title="Toggle sound"
+      >
+        <span *ngIf="soundEnabled">🔊</span>
+        <span *ngIf="!soundEnabled">🔇</span>
+      </button>
     </div>
   </header>
 
@@ -129,28 +141,6 @@
         </div>
 
         <div class="settings-bottom">
-          <div class="voice-question-toggle">
-            <span>Interviewer voice</span>
-            <button
-              type="button"
-              class="interviewer-voice-toggle-btn"
-              [class.on]="questionVoiceEnabled"
-              [class.off]="!questionVoiceEnabled"
-              (click)="toggleQuestionVoice()"
-              [title]="questionVoiceEnabled ? 'Interviewer voice on' : 'Interviewer voice off'"
-              aria-label="Toggle interviewer voice"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                <path *ngIf="questionVoiceEnabled" d="M15.5 8.5a5 5 0 0 1 0 7"></path>
-                <path *ngIf="questionVoiceEnabled" d="M18.5 5.5a9 9 0 0 1 0 13"></path>
-                <line *ngIf="!questionVoiceEnabled" x1="23" y1="9" x2="17" y2="15"></line>
-                <line *ngIf="!questionVoiceEnabled" x1="17" y1="9" x2="23" y2="15"></line>
-              </svg>
-              <span>{{ questionVoiceEnabled ? 'On' : 'Off' }}</span>
-            </button>
-          </div>
-
           <div class="settings-footer">
             <div class="buttons-row">
               <button class="primary interview-action-btn" [disabled]="isStartDisabled" (click)="startInterview()">Start Interview</button>

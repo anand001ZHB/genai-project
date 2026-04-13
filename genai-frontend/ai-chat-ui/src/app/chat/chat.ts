@@ -80,6 +80,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   showScrollButton = false;
   isSetupPanelVisible = true;
   selectedTheme = 'theme-system';
+  soundEnabled = true;
   showEndSummaryModal = false;
   endNotice = '';
   voiceModeEnabled = true;
@@ -339,6 +340,14 @@ export class Chat implements AfterViewChecked, OnDestroy {
     const index = this.themes.findIndex((theme) => theme.class === themeClass);
     if (index >= 0) {
       this.currentThemeIndex = index;
+    }
+  }
+
+  toggleSound() {
+    this.soundEnabled = !this.soundEnabled;
+    this.questionVoiceEnabled = this.soundEnabled;
+    if (!this.soundEnabled) {
+      this.stopInterviewerSpeech();
     }
   }
 
@@ -1596,7 +1605,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   }
 
   private speakQuestionWithDelay(rawText: string) {
-    if (!this.questionVoiceEnabled || !this.ttsSupported || !rawText || typeof window === 'undefined') {
+    if (!this.soundEnabled || !this.ttsSupported || !rawText || typeof window === 'undefined') {
       return;
     }
 
