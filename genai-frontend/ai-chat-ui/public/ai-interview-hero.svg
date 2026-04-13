@@ -1,0 +1,90 @@
+<svg width="480" height="280" viewBox="0 0 720 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f6f8fc" />
+      <stop offset="100%" stop-color="#e9eef8" />
+    </linearGradient>
+    <linearGradient id="shirtGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#6d28d9" />
+    </linearGradient>
+    <style>
+      .outline { stroke: #0f172a; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .soft { stroke: #334155; }
+      .dot {
+        animation: pulse 1.3s infinite ease-in-out;
+        transform-origin: center;
+      }
+      .dot:nth-child(2) { animation-delay: 0.15s; }
+      .dot:nth-child(3) { animation-delay: 0.3s; }
+      .float {
+        animation: floatY 3.2s infinite ease-in-out;
+        transform-origin: center;
+      }
+      .wave {
+        animation: waveArm 1.9s infinite ease-in-out;
+        transform-origin: 250px 224px;
+      }
+      .blink {
+        animation: blinkEyes 4.4s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.35; transform: scale(0.9); }
+        50% { opacity: 1; transform: scale(1.05); }
+      }
+      @keyframes floatY {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-6px); }
+      }
+      @keyframes waveArm {
+        0%, 100% { transform: rotate(-5deg); }
+        50% { transform: rotate(8deg); }
+      }
+      @keyframes blinkEyes {
+        0%, 46%, 50%, 96%, 100% { transform: scaleY(1); }
+        48%, 98% { transform: scaleY(0.12); }
+      }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="720" height="420" fill="transparent" />
+
+  <g transform="translate(100 0)">
+    <rect x="122" y="120" width="250" height="214" rx="24" fill="url(#panelGrad)" class="outline" />
+    <rect x="154" y="255" width="188" height="9" rx="4.5" fill="#8b5cf6" opacity="0.65" />
+    <rect x="154" y="277" width="136" height="9" rx="4.5" fill="#8b5cf6" opacity="0.55" />
+    <rect x="154" y="299" width="178" height="9" rx="4.5" fill="#8b5cf6" opacity="0.72" />
+
+    <g>
+      <rect x="176" y="72" width="170" height="114" rx="56" fill="#ffffff" class="outline" />
+      <ellipse cx="261" cy="123" rx="59" ry="32" fill="#0f172a" class="outline" />
+      <circle cx="242" cy="123" r="8" fill="#ffffff" class="blink" />
+      <circle cx="277" cy="123" r="8" fill="#ffffff" class="blink" />
+      <path d="M240 143 C252 152 270 152 282 143" stroke="#ffffff" stroke-width="4" stroke-linecap="round" />
+
+      <circle cx="177" cy="118" r="16" fill="#d9f99d" class="outline" />
+      <circle cx="345" cy="118" r="16" fill="#d9f99d" class="outline" />
+
+      <rect x="186" y="172" width="150" height="118" rx="38" fill="#f8fafc" class="outline" />
+      <circle cx="261" cy="226" r="17" fill="#bef264" class="outline" />
+
+      <path d="M188 205 C164 216 157 244 173 266" class="outline" />
+      <circle cx="169" cy="269" r="10" fill="#f8fafc" class="outline" />
+
+      <g class="wave">
+        <path d="M334 205 C359 213 369 241 356 264" class="outline" />
+        <circle cx="358" cy="267" r="10" fill="#f8fafc" class="outline" />
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(214 40)">
+    <rect x="0" y="0" width="94" height="42" rx="12" fill="#f8fafc" class="outline" />
+    <path d="M24 42 L34 58 L47 42" fill="#f8fafc" class="outline" />
+    <circle class="dot" cx="28" cy="21" r="4" fill="#0f172a" />
+    <circle class="dot" cx="47" cy="21" r="4" fill="#0f172a" />
+    <circle class="dot" cx="66" cy="21" r="4" fill="#0f172a" />
+  </g>
+
+  <path d="M86 356 H634" stroke="#0f172a" stroke-width="3" stroke-linecap="round" opacity="0.75" />
+</svg>

@@ -140,7 +140,8 @@ export class Chat implements AfterViewChecked, OnDestroy {
   readonly themes = [
     { class: 'theme-system', label: 'System' },
     { class: 'theme-dark', label: 'Dark' },
-    { class: 'theme-light', label: 'Light' }
+    { class: 'theme-light', label: 'Light' },
+    { class: 'theme-light-blue', label: 'Light Blue' }
   ];
   currentThemeIndex = 0;
   showWelcomeScreen = true;

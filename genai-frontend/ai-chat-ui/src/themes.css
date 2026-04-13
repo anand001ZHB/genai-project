@@ -43,6 +43,29 @@
   --control-disabled-border: var(--light-control-disabled-border);
 }
 
+.theme-light-blue {
+  --bg: var(--blue-bg);
+  --panel: var(--blue-panel);
+  --surface: var(--blue-surface);
+  --border: var(--blue-border);
+  --text: var(--blue-text);
+  --muted: var(--blue-text-muted);
+  --input: var(--blue-input);
+  --button: var(--blue-button);
+  --button-text: var(--blue-button-text);
+  --button-hover: var(--blue-button-hover);
+  --bubble-user: var(--blue-bubble-user);
+  --bubble-ai: var(--blue-bubble-ai);
+  --code-bg: var(--blue-code-bg);
+  --input-placeholder: var(--blue-input-placeholder);
+  --secondary-border: var(--blue-border-secondary);
+  --theme-bg: var(--blue-theme-bg);
+  --theme-border: var(--blue-theme-border);
+  --control-disabled-bg: var(--blue-control-disabled-bg);
+  --control-disabled-text: var(--blue-control-disabled-text);
+  --control-disabled-border: var(--blue-control-disabled-border);
+}
+
 .theme-system {
   --bg: var(--dark-bg);
   --panel: var(--dark-panel);

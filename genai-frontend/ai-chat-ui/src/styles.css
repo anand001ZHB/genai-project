@@ -33,7 +33,7 @@ body {
   height: 100%;
   min-height: 100vh;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   padding-bottom: 46px;
   background: var(--bg);
   color: var(--text);
@@ -151,6 +151,20 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+.welcome-hero-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 14px;
+}
+
+.welcome-hero {
+  width: min(360px, 100%);
+  height: auto;
+  border-radius: 16px;
+}
+
 .welcome-card h1 {
   margin: 0 0 var(--spacing-md);
   font-size: clamp(1.7rem, 2.3vw, 2.4rem);
@@ -197,6 +211,10 @@ body {
 
   .welcome-card {
     padding: var(--spacing-xl);
+  }
+
+  .welcome-hero {
+    width: min(280px, 100%);
   }
 }
 
@@ -352,13 +370,15 @@ body {
   opacity: 0.58;
 }
 
-.theme-light .interview-action-btn:disabled {
+.theme-light .interview-action-btn:disabled,
+.theme-light-blue .interview-action-btn:disabled {
   color: var(--control-disabled-text);
   opacity: 0.9;
   filter: none;
 }
 
-.theme-light .interview-action-btn:disabled:hover {
+.theme-light .interview-action-btn:disabled:hover,
+.theme-light-blue .interview-action-btn:disabled:hover {
   opacity: 0.9;
 }
 
@@ -770,7 +790,12 @@ body {
 .theme-light .send-action,
 .theme-light .inline-send,
 .theme-light .mic-indicator,
-.theme-light .strip-plain {
+.theme-light .strip-plain,
+.theme-light-blue .end-action,
+.theme-light-blue .send-action,
+.theme-light-blue .inline-send,
+.theme-light-blue .mic-indicator,
+.theme-light-blue .strip-plain {
   border-color: color-mix(in srgb, var(--text) 28%, var(--border) 72%);
   background: color-mix(in srgb, var(--surface) 92%, #cbd5e1 8%);
 }
@@ -779,7 +804,12 @@ body {
 .theme-light .send-action:hover:not(:disabled),
 .theme-light .inline-send:hover:not(:disabled),
 .theme-light .mic-indicator:hover:not(:disabled),
-.theme-light .strip-plain:hover {
+.theme-light .strip-plain:hover,
+.theme-light-blue .end-action:hover:not(:disabled),
+.theme-light-blue .send-action:hover:not(:disabled),
+.theme-light-blue .inline-send:hover:not(:disabled),
+.theme-light-blue .mic-indicator:hover:not(:disabled),
+.theme-light-blue .strip-plain:hover {
   border-color: color-mix(in srgb, var(--button) 62%, #0f172a 38%);
   background: color-mix(in srgb, var(--surface) 82%, var(--button) 18%);
 }
@@ -796,11 +826,13 @@ body {
   border: none;
 }
 
-.theme-light .voice-wave-line {
+.theme-light .voice-wave-line,
+.theme-light-blue .voice-wave-line {
   border-top-color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 
-.theme-light .voice-wave-track span {
+.theme-light .voice-wave-track span,
+.theme-light-blue .voice-wave-track span {
   background: color-mix(in srgb, var(--button) 68%, var(--text) 32%);
 }
 
