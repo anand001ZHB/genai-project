@@ -82,6 +82,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   selectedTheme = 'theme-system';
   soundEnabled = true;
   showEndSummaryModal = false;
+  showEndConfirmModal = false;
   endNotice = '';
   voiceModeEnabled = true;
   questionVoiceEnabled = true;
@@ -305,6 +306,45 @@ export class Chat implements AfterViewChecked, OnDestroy {
     return this.summary.overallAvg;
   }
 
+  private normalizeInterviewerMessage(rawMessage: string): string {
+    const text = (rawMessage || '').trim();
+    if (!text) return 'No response from interviewer.';
+
+    const normalized = text
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    const firstBrace = normalized.indexOf('{');
+    const lastBrace = normalized.lastIndexOf('}');
+    const candidate = firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace
+      ? normalized.slice(firstBrace, lastBrace + 1)
+      : normalized;
+
+    const attempts = [
+      candidate,
+      candidate.replace(/,\s*([}\]])/g, '$1'),
+    ];
+
+    for (const attempt of attempts) {
+      try {
+        const parsed = JSON.parse(attempt);
+        const feedback = String(parsed?.feedback || '').trim();
+        const nextQuestion = String(parsed?.nextQuestion || '').trim();
+        const combined = [feedback, nextQuestion].filter(Boolean).join('\n\n').trim();
+
+        if (combined) {
+          return combined;
+        }
+      } catch {
+        // ignore invalid JSON-like payloads and fall back to plain text
+      }
+    }
+
+    return normalized;
+  }
+
   get theoryWidth(): string {
     return `${Math.max(0, Math.min(100, this.theoryAverage * 10))}%`;
   }
@@ -356,6 +396,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.stopRatingVoiceCapture();
     this.messages = [];
     this.showEndSummaryModal = false;
+    this.showEndConfirmModal = false;
     this.resetScoreSummary();
     this.userInput = '';
     this.interviewStarted = false;
@@ -380,7 +421,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
       selfRating: 5,
     }).subscribe({
       next: (res) => {
-        const message = res.message || res.reply || 'No response from interviewer.';
+        const message = this.normalizeInterviewerMessage(res.message || res.reply || 'No response from interviewer.');
         const aiMessage = this.createMessage('ai', marked.parse(message) as string);
         this.messages.push(aiMessage);
         this.sessionId = res.sessionId || '';
@@ -639,8 +680,24 @@ export class Chat implements AfterViewChecked, OnDestroy {
     }
   }
 
+  confirmEndInterview() {
+    if (!this.interviewStarted) return;
+    this.showEndConfirmModal = true;
+  }
+
+  cancelEndInterview() {
+    this.showEndConfirmModal = false;
+  }
+
+  proceedEndInterview() {
+    this.showEndConfirmModal = false;
+    this.endInterview();
+  }
+
   endInterview() {
     if (!this.interviewStarted) return;
+
+    this.showEndConfirmModal = false;
 
     this.stopInterviewerSpeech();
     this.cancelVoiceActivities();
@@ -688,6 +745,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.stopRatingVoiceCapture();
     this.cancelVoiceActivities();
     this.showEndSummaryModal = false;
+    this.showEndConfirmModal = false;
     this.showRatingStep = false;
     this.interviewStarted = false;
     this.isAnswerTurn = false;
@@ -1008,7 +1066,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
           return;
         }
 
-        const message = res.message || res.reply || 'No response from interviewer.';
+        const message = this.normalizeInterviewerMessage(res.message || res.reply || 'No response from interviewer.');
         const aiMessage = this.createMessage('ai', marked.parse(message) as string);
         this.messages.push(aiMessage);
         this.lastQuestion = res.question || this.extractQuestion(message);
@@ -1016,7 +1074,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
         this.speakQuestionWithDelay(message);
 
         if (res?.ended) {
-          this.endNotice = res.message || 'Okay, ending the interview. Here is your summary.';
+          this.endNotice = message || 'Okay, ending the interview. Here is your summary.';
           this.interviewStarted = false;
           this.isAwaitingResponse = false;
           this.isAnswerTurn = false;

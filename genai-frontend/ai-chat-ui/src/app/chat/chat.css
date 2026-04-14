@@ -308,6 +308,41 @@
   margin-top: var(--spacing-sm);
 }
 
+.confirm-modal-backdrop {
+  z-index: 130;
+}
+
+.confirm-modal-card {
+  width: min(420px, 100%);
+}
+
+.confirm-modal-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.confirm-modal-actions button {
+  min-width: 108px;
+}
+
+.confirm-modal-actions button:not(.primary) {
+  background: transparent;
+  color: var(--text);
+  border: var(--chat-border-width) solid var(--border);
+}
+
+.confirm-modal-actions button:not(.primary):hover {
+  background: color-mix(in srgb, var(--surface) 88%, var(--text) 12%);
+}
+
 .rating-input::-webkit-outer-spin-button,
 .rating-input::-webkit-inner-spin-button {
   -webkit-appearance: none;

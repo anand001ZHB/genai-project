@@ -157,7 +157,7 @@
         <button
           class="primary interview-action-btn panel-end-action"
           [disabled]="!isStartDisabled"
-          (click)="endInterview()"
+          (click)="confirmEndInterview()"
           title="End interview"
           aria-label="End interview"
         >
@@ -302,6 +302,17 @@
         </div>
       </div>
 
+    </section>
+
+    <section *ngIf="showEndConfirmModal" class="summary-modal-backdrop confirm-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirmEndTitle">
+      <div class="summary-modal-card confirm-modal-card">
+        <h3 id="confirmEndTitle">End interview?</h3>
+        <p class="confirm-modal-copy">Are you sure you want to end the current interview session?</p>
+        <div class="confirm-modal-actions">
+          <button type="button" (click)="cancelEndInterview()">Cancel</button>
+          <button type="button" class="primary" (click)="proceedEndInterview()">End Interview</button>
+        </div>
+      </div>
     </section>
 
     <section *ngIf="showEndSummaryModal" class="summary-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">

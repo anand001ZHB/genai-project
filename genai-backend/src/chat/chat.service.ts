@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 
-type ResponseSignal = 'normal' | 'dont_know' | 'move_on' | 'greeting' | 'end_interview';
+type ResponseSignal = 'normal' | 'dont_know' | 'move_on' | 'greeting' | 'end_interview' | 'clarification';
 
 interface InterviewConfig {
   level?: string;
@@ -127,6 +127,23 @@ export class ChatService {
     return (hasEndWord && hasInterviewWord) || (hasInterviewWord && hasOverWord);
   }
 
+  private hasFuzzyDontKnowCue(cleaned: string): boolean {
+    const tokens = cleaned
+      .split(/\s+/)
+      .map((token) => token.replace(/'/g, ''))
+      .filter(Boolean);
+
+    if (tokens.length === 0) return false;
+
+    const hasDontWord = tokens.some((token) => this.isApproxWord(token, 'dont', 1));
+    const hasDoWord = tokens.some((token) => this.isApproxWord(token, 'do', 0));
+    const hasNotWord = tokens.some((token) => this.isApproxWord(token, 'not', 1));
+    const hasKnowWord = tokens.some((token) => this.isApproxWord(token, 'know', 1));
+    const hasIdeaWord = tokens.some((token) => this.isApproxWord(token, 'idea', 1));
+
+    return (hasKnowWord && (hasDontWord || (hasDoWord && hasNotWord))) || (hasNotWord && hasIdeaWord);
+  }
+
   private hasUncertaintyCue(answer: string): boolean {
     const normalized = (answer || '')
       .toLowerCase()
@@ -138,6 +155,8 @@ export class ChatService {
     const cues = [
       "don't know",
       'dont know',
+      "i don't know",
+      'i dont know',
       'do not know',
       'not sure',
       'no idea',
@@ -151,6 +170,10 @@ export class ChatService {
       'uncertain',
       'unable to answer',
       'not able to answer',
+      'i have no idea',
+      'cannot remember',
+      'i am blanking',
+      "i'm blanking",
     ];
 
     if (cues.some((cue) => normalized.includes(cue))) {
@@ -167,9 +190,96 @@ export class ChatService {
       /\b(can(?:not|'t)\s+recall)\b/i,
       /\b(?:unsure|uncertain)\b/i,
       /\b(?:unable|not\s+able)\s+to\s+answer\b/i,
+      /\bblanking\b/i,
     ];
 
     return cuePatterns.some((pattern) => pattern.test(normalized));
+  }
+
+  private hasClarificationCue(answer: string): boolean {
+    const normalized = (answer || '')
+      .toLowerCase()
+      .replace(/[’`]/g, "'")
+      .trim();
+
+    if (!normalized) return false;
+
+    const phrases = [
+      'can you repeat',
+      'could you repeat',
+      'would you repeat',
+      'please repeat',
+      'repeat the question',
+      'say that again',
+      'come again',
+      'can you rephrase',
+      'could you rephrase',
+      'please rephrase',
+      'can you explain the question',
+      'i did not understand',
+      "i didn't understand",
+      'did not get you',
+      "didn't get you",
+      'what do you mean',
+    ];
+
+    if (phrases.some((phrase) => normalized.includes(phrase))) {
+      return true;
+    }
+
+    const patterns = [
+      /^\s*what\??\s*$/i,
+      /^\s*pardon\??\s*$/i,
+      /\b(?:can|could|would)\s+you\s+(?:repeat|rephrase|explain)\b/i,
+      /\bsay\s+that\s+again\b/i,
+      /\bdid(?:\s+not|n't)\s+(?:get|understand)\b/i,
+    ];
+
+    return patterns.some((pattern) => pattern.test(normalized));
+  }
+
+  private extractJsonLikeField(rawText: string, fieldName: 'feedback' | 'decision' | 'nextQuestion'): string {
+    const text = (rawText || '')
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    if (!text) return '';
+
+    const patterns = [
+      new RegExp(`"${fieldName}"\\s*:\\s*"([\\s\\S]*?)"(?=\\s*,\\s*"[^"]+"\\s*:|\\s*}\\s*$)`, 'i'),
+      new RegExp(`'${fieldName}'\\s*:\\s*'([\\s\\S]*?)'(?=\\s*,\\s*'[^']+'\\s*:|\\s*}\\s*$)`, 'i'),
+      new RegExp(`${fieldName}\\s*:\\s*"([\\s\\S]*?)"(?=\\s*,\\s*[a-zA-Z"]+\\s*:|\\s*}\\s*$)`, 'i'),
+    ];
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) {
+        return match[1]
+          .replace(/\\"/g, '"')
+          .replace(/\\n/g, '\n')
+          .trim();
+      }
+    }
+
+    return '';
+  }
+
+  private recoverStructuredPayload(rawText: string): any | null {
+    const feedback = this.extractJsonLikeField(rawText, 'feedback');
+    const decision = this.extractJsonLikeField(rawText, 'decision');
+    const nextQuestion = this.extractJsonLikeField(rawText, 'nextQuestion');
+
+    if (!feedback && !decision && !nextQuestion) {
+      return null;
+    }
+
+    return {
+      feedback,
+      decision: (decision || 'NEXT').trim().toUpperCase(),
+      nextQuestion: nextQuestion || 'Can you explain this in more detail?',
+    };
   }
 
   private extractQuestion(reply: string): string {
@@ -314,6 +424,9 @@ export class ChatService {
       return 'end_interview';
     }
 
+    if (this.hasClarificationCue(message)) {
+      return 'clarification';
+    }
 
     const moveOnPhrases = [
       'move ahead',
@@ -322,6 +435,7 @@ export class ChatService {
       'next question',
       'next one',
       'skip this',
+      'skip this one',
       'skip question',
       'skip it',
       'go next',
@@ -331,6 +445,9 @@ export class ChatService {
       'can we move on',
       'please move on',
       'go to next',
+      'ask another question',
+      'ask next question',
+      'give me next question',
     ];
 
     const dontKnowPhrases = [
@@ -354,6 +471,10 @@ export class ChatService {
       'cannot answer',
       'i am not sure',
       "i'm not sure",
+      'i have no idea',
+      'cannot remember',
+      'i am blanking',
+      "i'm blanking",
     ];
 
     const dontKnowPatterns = [
@@ -365,6 +486,7 @@ export class ChatService {
       /\b(can(?:not|'t)\s+answer)\b/i,
       /\b(can(?:not|'t)\s+recall)\b/i,
       /\b(?:unsure|uncertain)\b/i,
+      /\bblanking\b/i,
     ];
 
     if (moveOnPhrases.some((phrase) => normalized.includes(phrase))) {
@@ -375,7 +497,7 @@ export class ChatService {
       return 'dont_know';
     }
 
-    if (dontKnowPatterns.some((pattern) => pattern.test(cleaned))) {
+    if (dontKnowPatterns.some((pattern) => pattern.test(cleaned)) || this.hasFuzzyDontKnowCue(cleaned)) {
       return 'dont_know';
     }
 
@@ -401,6 +523,21 @@ export class ChatService {
       .replace(/\s{2,}/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+  }
+
+  private ensureOpeningGreeting(reply: string): string {
+    const text = (reply || '').trim();
+    if (!text) return 'Welcome, let us get started.';
+
+    const greetingRegex = /^(welcome|hello|hi\b|good\s+to\s+have\s+you\s+here|nice\s+to\s+meet\s+you)/i;
+    if (greetingRegex.test(text)) {
+      return text;
+    }
+
+    const withoutAck = text.replace(/^(got it|sure|alright|fair enough|no worries|okay|ok|great)\s*[.!,-]*\s*/i, '').trim();
+    const content = withoutAck || text;
+
+    return `Welcome, let us get started.\n\n${content}`.trim();
   }
 
   private extractRatingsAndCleanReply(reply: string): { cleanedReply: string; scores: SectionScores | null } {
@@ -439,6 +576,11 @@ export class ChatService {
 
   private buildInterviewerMessage(response: InterviewTurnResponse): string {
     if (!response?.isStructured) {
+      const recovered = this.recoverStructuredPayload(response?.rawText || '');
+      if (recovered) {
+        return [recovered.feedback, recovered.nextQuestion].filter(Boolean).join('\n\n').trim();
+      }
+
       return response?.rawText || response?.feedback || 'No response from interviewer.';
     }
 
@@ -530,6 +672,112 @@ export class ChatService {
     return `I am still hearing "${snippet}" and not a real attempt. Please either answer now, or say "move on" and I will switch the question.`;
   }
 
+  private getQuestionBank(topic: string): string[] {
+    const normalizedTopic = (topic || '').toLowerCase();
+
+    if (normalizedTopic.includes('javascript')) {
+      return [
+        'What is hoisting in JavaScript?',
+        'What is a closure in JavaScript?',
+        'What is the difference between == and === in JavaScript?',
+        'How do promises differ from async and await in JavaScript?',
+      ];
+    }
+
+    if (normalizedTopic.includes('typescript')) {
+      return [
+        'What is the difference between an interface and a type in TypeScript?',
+        'What are generics in TypeScript?',
+        'What is the purpose of union types in TypeScript?',
+      ];
+    }
+
+    if (normalizedTopic.includes('angular')) {
+      return [
+        'What is the difference between components and services in Angular?',
+        'What is dependency injection in Angular?',
+        'How does change detection work in Angular?',
+      ];
+    }
+
+    if (normalizedTopic.includes('react')) {
+      return [
+        'What is the difference between state and props in React?',
+        'What is the purpose of useEffect in React?',
+        'What problem does the virtual DOM solve in React?',
+      ];
+    }
+
+    if (normalizedTopic.includes('node')) {
+      return [
+        'What is the event loop in Node.js?',
+        'What is the difference between synchronous and asynchronous code in Node.js?',
+        'What are middleware functions used for on the backend?',
+      ];
+    }
+
+    if (normalizedTopic.includes('nest')) {
+      return [
+        'What is the role of a module in NestJS?',
+        'What is dependency injection in NestJS?',
+        'What is the difference between a controller and a service in NestJS?',
+      ];
+    }
+
+    if (normalizedTopic.includes('sql') || normalizedTopic.includes('postgres') || normalizedTopic.includes('mongo')) {
+      return [
+        'What is the difference between a primary key and a foreign key?',
+        'What is a database index and why is it useful?',
+        'What is the difference between an inner join and a left join?',
+      ];
+    }
+
+    if (normalizedTopic.includes('python')) {
+      return [
+        'What is the difference between a list and a tuple in Python?',
+        'What is a dictionary in Python?',
+        'How does list comprehension help in Python?',
+      ];
+    }
+
+    return [
+      `What is one core concept in ${topic} that you know well?`,
+      `Can you explain a practical use case related to ${topic}?`,
+      `What is a common challenge developers face with ${topic}?`,
+    ];
+  }
+
+  private isQuestionSimilar(left: string, right: string): boolean {
+    const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const a = normalize(left);
+    const b = normalize(right);
+
+    if (!a || !b) return false;
+    if (a === b || a.includes(b) || b.includes(a)) return true;
+
+    const stopWords = new Set(['what', 'which', 'when', 'where', 'why', 'how', 'the', 'and', 'with', 'from', 'into', 'your', 'this', 'that', 'does']);
+    const aTokens = new Set(a.split(/\s+/).filter((token) => token.length > 2 && !stopWords.has(token)));
+    const bTokens = new Set(b.split(/\s+/).filter((token) => token.length > 2 && !stopWords.has(token)));
+
+    if (!aTokens.size || !bTokens.size) return false;
+
+    const overlapCount = [...aTokens].filter((token) => bTokens.has(token)).length;
+    const overlapRatio = overlapCount / Math.max(aTokens.size, bTokens.size);
+
+    return overlapRatio >= 0.6;
+  }
+
+  private buildMoveOnReply(topic: string, previousQuestion: string): { message: string; nextQuestion: string } {
+    const nextQuestion = this.getQuestionBank(topic).find((candidate) => !this.isQuestionSimilar(candidate, previousQuestion))
+      || this.getQuestionBank(topic)[0]
+      || `Can you explain one core idea in ${topic}?`;
+
+    return {
+      message: `No problem. Let us move on.\n\n${nextQuestion}`,
+      nextQuestion,
+    };
+  }
+
   private openai: OpenAI | null = null;
 
   private getOpenAIClient(): OpenAI {
@@ -546,21 +794,23 @@ export class ChatService {
   private buildSystemPrompt() {
     return `You are a real, experienced technical interviewer conducting a live 1-on-1 interview.
 
-You MUST ALWAYS respond ONLY in valid JSON format:
-
+Return ONLY one JSON object with this exact shape:
 {
-  "feedback": "1-2 sentences of natural human speech — like a senior dev talking, not a teacher or chatbot",
+  "feedback": "1-2 short natural sentences",
   "decision": "FOLLOW_UP | NEXT | CHANGE_TOPIC | REPEAT | END",
-  "nextQuestion": "next interview question"
+  "nextQuestion": "one interview question"
 }
 
 STRICT RULES:
-- ALWAYS include "nextQuestion" — never leave it empty
+- No markdown fences
+- No extra text before or after the JSON object
+- No trailing commas
+- ALWAYS include "nextQuestion" and keep it non-empty unless decision is END
 - ALWAYS ask exactly ONE question
-- feedback must sound casual and human: "Got it.", "Sure.", "Fair enough.", "No worries." — short phrases before the question
-- NEVER use formal/robotic language in feedback: no "Kindly", no "That drifts from", no "Your response was"
+- feedback must sound casual and human: "Got it.", "Sure.", "Fair enough.", "No worries."
+- NEVER use formal or robotic phrases like "Kindly", "That drifts from", or "Your response was"
 - NEVER quote back the candidate's exact words in quote marks inside feedback
-- Do NOT return plain text — JSON only
+- If the candidate asks to repeat or clarify, use decision REPEAT and restate the same question more simply
 `;
   }
 
@@ -572,24 +822,34 @@ STRICT RULES:
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')
       .replace(/\s*```$/i, '')
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
       .trim();
 
-    try {
-      return JSON.parse(normalized);
-    } catch {
-      const firstBrace = normalized.indexOf('{');
-      const lastBrace = normalized.lastIndexOf('}');
-      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-        return null;
-      }
+    const firstBrace = normalized.indexOf('{');
+    const lastBrace = normalized.lastIndexOf('}');
+    const candidate = firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace
+      ? normalized.slice(firstBrace, lastBrace + 1)
+      : normalized;
 
-      const candidate = normalized.slice(firstBrace, lastBrace + 1);
+    const attempts = [
+      candidate,
+      candidate.replace(/,\s*([}\]])/g, '$1'),
+      candidate.replace(/([{,]\s*)(feedback|decision|nextQuestion)(\s*:)/gi, '$1"$2"$3'),
+      candidate
+        .replace(/([{,]\s*)(feedback|decision|nextQuestion)(\s*:)/gi, '$1"$2"$3')
+        .replace(/,\s*([}\]])/g, '$1'),
+    ];
+
+    for (const attempt of attempts) {
       try {
-        return JSON.parse(candidate);
+        return JSON.parse(attempt);
       } catch {
-        return null;
+        // continue to the next normalization attempt
       }
     }
+
+    return this.recoverStructuredPayload(candidate);
   }
 
   async getAIResponse(message: string) {
@@ -626,19 +886,24 @@ STRICT RULES:
         return {
           rawText,
           feedback: parsed.feedback || '',
-          decision: parsed.decision || 'NEXT',
+          decision: String(parsed.decision || 'NEXT').toUpperCase(),
           nextQuestion: parsed.nextQuestion,
           isStructured: true,
         };
 
       } catch (err) {
         console.warn('⚠️ JSON parse failed:', rawText);
+        const sanitized = rawText
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/\s*```$/i, '')
+          .trim();
 
         return {
-          rawText,
-          feedback: rawText,
+          rawText: sanitized,
+          feedback: sanitized,
           decision: 'NEXT',
-          nextQuestion: this.extractQuestion(rawText),
+          nextQuestion: this.extractQuestion(sanitized),
           isStructured: false,
         };
       }
@@ -702,7 +967,7 @@ Setup:
 - Topic to be interviewed on: ${topic}
 - Ask the first question at ${questionDifficulty} level
 
-Begin with a single brief professional welcome sentence (e.g. "Welcome, let's get started." or "Good to have you here."). Do NOT use casual or filler phrases such as "no worries", "dive right in", "sure thing", or "no problem". Then immediately ask the first interview question on ${topic}.
+Begin with a single brief professional welcome sentence starting with a greeting such as "Welcome, let's get started." or "Good to have you here.". Do NOT begin with acknowledgments like "Got it", "Sure", or "Fair enough". Then immediately ask the first interview question on ${topic}.
 
 Keep it concise. Ask exactly ONE focused question.
 `;
@@ -710,7 +975,7 @@ Keep it concise. Ask exactly ONE focused question.
     const aiResponse = await this.getAIResponse(startPrompt);
     const rawReply = this.buildInterviewerMessage(aiResponse);
     const { cleanedReply } = this.extractRatingsAndCleanReply(rawReply);
-    const message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
+    const message = this.ensureOpeningGreeting(this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.');
     const question = this.extractQuestion(message);
 
     const sessionId = this.createSessionId();
@@ -808,6 +1073,28 @@ Keep it concise. Ask exactly ONE focused question.
       };
     }
 
+    if (responseSignal === 'clarification') {
+      session.greetingAttemptsForCurrentQuestion = 0;
+      session.redirectAttemptsForCurrentQuestion = 0;
+
+      const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your answer?';
+      const message = `Sure, here is the question again:\n\n${safeQuestion}`;
+      this.appendHistory(session, answer, message);
+
+      return {
+        sessionId,
+        message,
+        question: safeQuestion,
+        evaluation: null,
+        progress: {
+          responseSignal,
+          questionChanged: false,
+          stuckAttempts: session.stuckAttemptsForCurrentQuestion,
+        },
+        summary: this.getSummary(session),
+      };
+    }
+
     if (responseSignal === 'dont_know' || responseSignal === 'move_on') {
       session.stuckAttemptsForCurrentQuestion += 1;
       session.greetingAttemptsForCurrentQuestion = 0;
@@ -827,48 +1114,9 @@ Keep it concise. Ask exactly ONE focused question.
       !this.isSubstantiveAnswer(answer) &&
       !this.hasUncertaintyCue(answer);
 
-    // 🔥 MOVE ON AFTER 2 FAILS
     if (responseSignal === 'dont_know' && stuckAttempts >= 2) {
+      const { message, nextQuestion } = this.buildMoveOnReply(topic, question);
 
-      const moveAheadPrompt = `You are a real interviewer in a live 1-on-1 interview.
-
-The candidate couldn't answer this question after multiple tries:
-"${question}"
-
-Topic: ${topic}
-
-Respond naturally — like a senior dev would in a real conversation:
-- One brief, human phrase acknowledging it (e.g. "No worries.", "That's okay.", "Fair enough.")
-- Then immediately ask a DIFFERENT question on the same topic — it must NOT be a rephrasing or follow-up of the above question
-- The new question should test a clearly different concept within ${topic}
-- Do NOT repeat, rephrase, or reference the previous question at all
-- Do NOT give hints or explanations
-
-Return JSON:
-{
-  "feedback": "one casual phrase, e.g. 'No worries, let's move on.'",
-  "decision": "NEXT",
-  "nextQuestion": "a new, unrelated question on a different concept within ${topic}"
-}`;
-
-      const aiResponse = await this.getAIResponse(moveAheadPrompt);
-      const rawReply = this.buildInterviewerMessage(aiResponse);
-      const { cleanedReply } = this.extractRatingsAndCleanReply(rawReply);
-      let message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
-      let nextQuestion = aiResponse.isStructured
-        ? (aiResponse.nextQuestion || '').trim()
-        : this.extractQuestion(message);
-
-      // fallback safety
-      if (!nextQuestion || nextQuestion.trim().length === 0) {
-        nextQuestion = 'Can we move to a different JavaScript concept now?';
-      }
-
-      if (!message.includes(nextQuestion)) {
-        message = `${message}\n\n${nextQuestion}`.trim();
-      }
-
-      // reset state
       session.lastQuestion = nextQuestion;
       session.stuckAttemptsForCurrentQuestion = 0;
       session.greetingAttemptsForCurrentQuestion = 0;
@@ -982,36 +1230,8 @@ Return JSON:
     }
 
     if (responseSignal === 'move_on' || (responseSignal === 'dont_know' && stuckAttempts >= 2)) {
-      const moveAheadPrompt = `You are a real interviewer in a live 1-on-1 interview.
-
-The candidate wants to skip or move on.
-
-Topic: ${topic} | Difficulty: ${level}
-
-Previous question (do NOT repeat, rephrase, or reference this):
-"${question}"
-
-Respond like a real senior dev — brief and natural:
-- One short acknowledgment (e.g. "Sure.", "Got it.", "No problem.")
-- Then immediately ask a DIFFERENT question that tests a different concept within ${topic}
-- The new question must have no relation to the previous one
-- Keep it casual and direct
-`;
-
-      const aiResponse = await this.getAIResponse(moveAheadPrompt);
-      const rawReply = this.buildInterviewerMessage(aiResponse);
-      const { cleanedReply, scores } = this.extractRatingsAndCleanReply(rawReply);
-      const message = this.normalizeInterviewerTone(cleanedReply) || 'No response from interviewer.';
-      const nextQuestion = this.extractQuestion(message);
+      const { message, nextQuestion } = this.buildMoveOnReply(topic, question);
       const questionChanged = nextQuestion !== session.lastQuestion;
-
-      if (scores && shouldCaptureScore) {
-        session.scoreTotals.theory += scores.theory;
-        session.scoreTotals.coding += scores.coding;
-        session.scoreTotals.scenario += scores.scenario;
-        session.scoreTotals.output += scores.output;
-        session.scoreEntries += 1;
-      }
 
       if (questionChanged) {
         session.lastQuestion = nextQuestion;
@@ -1025,7 +1245,7 @@ Respond like a real senior dev — brief and natural:
         sessionId,
         message,
         question: nextQuestion,
-        evaluation: shouldCaptureScore ? scores : null,
+        evaluation: null,
         progress: {
           responseSignal,
           questionChanged,
