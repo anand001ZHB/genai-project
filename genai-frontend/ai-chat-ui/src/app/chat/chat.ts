@@ -14,6 +14,10 @@ interface InterviewSummary {
   scenarioAvg: number;
   outputAvg: number;
   overallAvg: number;
+  theoryCount: number;
+  codingCount: number;
+  scenarioCount: number;
+  outputCount: number;
 }
 
 interface SpeechRecognitionEventLike extends Event {
@@ -140,6 +144,10 @@ export class Chat implements AfterViewChecked, OnDestroy {
     scenarioAvg: 0,
     outputAvg: 0,
     overallAvg: 0,
+    theoryCount: 0,
+    codingCount: 0,
+    scenarioCount: 0,
+    outputCount: 0,
   };
   
   readonly themes = [
@@ -287,6 +295,22 @@ export class Chat implements AfterViewChecked, OnDestroy {
 
   get hasScoreData(): boolean {
     return this.summary.hasScoreData;
+  }
+
+  get showTheoryScore(): boolean {
+    return this.summary.theoryCount > 0;
+  }
+
+  get showCodingScore(): boolean {
+    return this.summary.codingCount > 0;
+  }
+
+  get showScenarioScore(): boolean {
+    return this.summary.scenarioCount > 0;
+  }
+
+  get showOutputScore(): boolean {
+    return this.summary.outputCount > 0;
   }
 
   get theoryAverage(): number {
@@ -897,6 +921,10 @@ export class Chat implements AfterViewChecked, OnDestroy {
       scenarioAvg: 0,
       outputAvg: 0,
       overallAvg: 0,
+      theoryCount: 0,
+      codingCount: 0,
+      scenarioCount: 0,
+      outputCount: 0,
     };
   }
 
@@ -911,6 +939,10 @@ export class Chat implements AfterViewChecked, OnDestroy {
       scenarioAvg: this.roundScore(Number(summary.scenarioAvg || 0)),
       outputAvg: this.roundScore(Number(summary.outputAvg || 0)),
       overallAvg: this.roundScore(Number(summary.overallAvg || 0)),
+      theoryCount: Number(summary.theoryCount || 0),
+      codingCount: Number(summary.codingCount || 0),
+      scenarioCount: Number(summary.scenarioCount || 0),
+      outputCount: Number(summary.outputCount || 0),
     };
   }
 

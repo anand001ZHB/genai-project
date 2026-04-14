@@ -315,48 +315,49 @@
         <h3 id="confirmEndTitle">End interview?</h3>
         <p class="confirm-modal-copy">Are you sure you want to end the current interview session?</p>
         <div class="confirm-modal-actions">
-          <button type="button" (click)="cancelEndInterview()">Cancel</button>
-          <button type="button" class="primary" (click)="proceedEndInterview()">End Interview</button>
+          <button type="button" class="interview-action-btn modal-secondary-btn" (click)="cancelEndInterview()">Cancel</button>
+          <button type="button" class="primary interview-action-btn" (click)="proceedEndInterview()">End Interview</button>
         </div>
       </div>
     </section>
 
     <section *ngIf="showEndSummaryModal" class="summary-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
       <div class="summary-modal-card">
-        <h3 id="summaryTitle">Interview Feedback Ratings</h3>
+        <h3 id="summaryTitle">Interview Summary</h3>
         <p *ngIf="endNotice" class="summary-end-copy">{{ endNotice }}</p>
+        <p class="summary-measure-copy">Each score is out of 10 and based on your answers in this session.</p>
 
         <div *ngIf="hasScoreData; else noModalScoreData" class="score-grid">
-          <div class="score-item">
+          <div *ngIf="showCodingScore" class="score-item">
             <div class="score-row-head">
-              <span>Concept Clarity</span>
-              <strong>{{ theoryAverage }}/10</strong>
-            </div>
-            <div class="score-bar"><span [style.width]="theoryWidth"></span></div>
-          </div>
-
-          <div class="score-item">
-            <div class="score-row-head">
-              <span>Implementation Quality</span>
+              <span>Coding Skills</span>
               <strong>{{ codingAverage }}/10</strong>
             </div>
             <div class="score-bar"><span [style.width]="codingWidth"></span></div>
           </div>
 
-          <div class="score-item">
+          <div *ngIf="showOutputScore" class="score-item">
             <div class="score-row-head">
-              <span>Problem Solving</span>
+              <span>Output Based Questions</span>
+              <strong>{{ outputAverage }}/10</strong>
+            </div>
+            <div class="score-bar"><span [style.width]="outputWidth"></span></div>
+          </div>
+
+          <div *ngIf="showScenarioScore" class="score-item">
+            <div class="score-row-head">
+              <span>Scenario Based Questions</span>
               <strong>{{ scenarioAverage }}/10</strong>
             </div>
             <div class="score-bar"><span [style.width]="scenarioWidth"></span></div>
           </div>
 
-          <div class="score-item">
+          <div *ngIf="showTheoryScore" class="score-item">
             <div class="score-row-head">
-              <span>Result Accuracy</span>
-              <strong>{{ outputAverage }}/10</strong>
+              <span>Theory Based Questions</span>
+              <strong>{{ theoryAverage }}/10</strong>
             </div>
-            <div class="score-bar"><span [style.width]="outputWidth"></span></div>
+            <div class="score-bar"><span [style.width]="theoryWidth"></span></div>
           </div>
 
           <div class="overall-score">
@@ -365,11 +366,11 @@
         </div>
 
         <ng-template #noModalScoreData>
-          <p class="no-scores-copy">No section scores were captured yet. Try answering a few interview questions before ending.</p>
+          <p class="no-scores-copy">No scored answer yet. Give at least one proper answer before ending to see your scores.</p>
         </ng-template>
 
         <div class="summary-modal-actions">
-          <button class="primary" (click)="practiceMore()">Practice more</button>
+          <button class="primary interview-action-btn" (click)="practiceMore()">Practice more</button>
         </div>
       </div>
     </section>

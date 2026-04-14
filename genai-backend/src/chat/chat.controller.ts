@@ -32,12 +32,12 @@ export class ChatController {
   }
 
   @Post('casual')
-  casualChat(@Body('message') message: string) {
+  casualChat(@Body('message') message: string): Promise<any> {
     return this.chatService.casualChat(message);
   }
 
   @Post()
-  chat(@Body('message') message: string) {
+  chat(@Body('message') message: string): Promise<any> {
     return this.chatService.getAIResponse(message);
   }
 }

@@ -335,6 +335,14 @@
   font-size: 0.92rem;
 }
 
+.summary-measure-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  font-weight: 400;
+}
+
 .summary-modal-actions {
   display: flex;
   justify-content: center;
@@ -363,17 +371,31 @@
 }
 
 .confirm-modal-actions button {
-  min-width: 108px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
-.confirm-modal-actions button:not(.primary) {
+.modal-secondary-btn {
+  border: 1px solid color-mix(in srgb, var(--button) 28%, var(--border) 72%);
   background: transparent;
   color: var(--text);
-  border: var(--chat-border-width) solid var(--border);
 }
 
-.confirm-modal-actions button:not(.primary):hover {
+.modal-secondary-btn:hover {
   background: color-mix(in srgb, var(--surface) 88%, var(--text) 12%);
+}
+
+.summary-modal-actions .interview-action-btn,
+.confirm-modal-actions .interview-action-btn {
+  height: 28px;
+  min-width: 96px;
+  width: auto;
+  padding: 0 10px;
+  font-size: 0.73rem;
+  font-weight: 500;
+  border-radius: 999px;
 }
 
 .rating-input::-webkit-outer-spin-button,
@@ -503,7 +525,7 @@
 }
 
 .score-bar {
-  height: 10px;
+  height: 6px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--border) 72%, transparent);
   overflow: hidden;

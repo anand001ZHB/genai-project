@@ -38,6 +38,7 @@ interface InterviewSession {
   greetingAttemptsForCurrentQuestion: number;
   redirectAttemptsForCurrentQuestion: number;
   scoreTotals: SectionScores;
+  scoreCounts: SectionScores;
   scoreEntries: number;
   history: ConversationEntry[];
 }
@@ -48,6 +49,7 @@ interface InterviewTurnResponse {
   decision: string;
   nextQuestion: string;
   isStructured: boolean;
+  scores?: SectionScores | null;
 }
 
 @Injectable()
@@ -221,6 +223,8 @@ export class ChatService {
       'did not get you',
       "didn't get you",
       'what do you mean',
+      'what does that mean',
+      'meaning of',
     ];
 
     if (phrases.some((phrase) => normalized.includes(phrase))) {
@@ -233,9 +237,72 @@ export class ChatService {
       /\b(?:can|could|would)\s+you\s+(?:repeat|rephrase|explain)\b/i,
       /\bsay\s+that\s+again\b/i,
       /\bdid(?:\s+not|n't)\s+(?:get|understand)\b/i,
+      /\bwhat\s+does\s+.+\s+mean\b/i,
+      /\bmeaning\s+of\b/i,
+      /^\s*what\s+is\s+[a-z][a-z0-9'_-]{1,30}\s*\??$/i,
+      /\b[a-z][a-z0-9'_-]{1,30}\s+means?\s*\??$/i,
     ];
 
     return patterns.some((pattern) => pattern.test(normalized));
+  }
+
+  private extractClarificationTarget(answer: string, question: string): string {
+    const normalizedAnswer = (answer || '').toLowerCase().replace(/[’`]/g, "'").trim();
+    const normalizedQuestion = (question || '').toLowerCase().replace(/[’`]/g, "'").trim();
+
+    const quotedMatch = normalizedAnswer.match(/["']([^"']{1,40})["']/);
+    if (quotedMatch?.[1]) {
+      return quotedMatch[1].trim();
+    }
+
+    const patterns = [
+      /\bwhat\s+does\s+([a-z][a-z0-9'_-]{1,30})\s+mean\b/i,
+      /\bwhat\s+is\s+([a-z][a-z0-9'_-]{1,30})\b/i,
+      /\b([a-z][a-z0-9'_-]{1,30})\s+means?\s*\??$/i,
+      /\bmeaning\s+of\s+([a-z][a-z0-9'_-]{1,30})\b/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = normalizedAnswer.match(pattern);
+      if (match?.[1]) {
+        return match[1].trim();
+      }
+    }
+
+    const stopWords = new Set(['what', 'does', 'do', 'did', 'can', 'could', 'would', 'please', 'mean', 'means', 'question', 'again', 'repeat', 'rephrase', 'explain', 'the', 'this', 'that', 'you', 'your']);
+    const answerTokens = normalizedAnswer.split(/\s+/).filter((token) => token.length > 2 && !stopWords.has(token));
+    const questionTokens = new Set(normalizedQuestion.split(/\s+/).filter((token) => token.length > 2 && !stopWords.has(token)));
+
+    return answerTokens.find((token) => questionTokens.has(token)) || '';
+  }
+
+  private buildClarificationReply(answer: string, question: string): string {
+    const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your answer?';
+    const target = this.extractClarificationTarget(answer, safeQuestion);
+
+    const clarificationMap: Record<string, string> = {
+      inside: 'the text should appear within the printed output line',
+      print: 'showing the result as output, usually in the console or on screen',
+      line: 'one row of output text',
+      closure: 'an inner function keeping access to variables from its outer scope',
+      hoisting: 'JavaScript handling certain declarations before the rest of the code runs',
+      scope: 'where a variable or function can be accessed in the code',
+      context: 'what value this refers to when the code runs',
+      this: 'the current calling object or execution context',
+      callback: 'a function passed to another function to run later',
+      promise: 'a value that may complete now or later',
+      async: 'a function keyword used when working with promises',
+      await: 'waiting for a promise to finish inside an async function',
+      output: 'the final result shown after the code runs',
+      parameter: 'an input value passed into a function',
+    };
+
+    if (target) {
+      const explanation = clarificationMap[target] || 'the term or concept mentioned in the question';
+      return `Sure — here, ${target} means ${explanation}. Now back to the question:\n\n${safeQuestion}`;
+    }
+
+    return `Sure — let me make that simpler. Now back to the question:\n\n${safeQuestion}`;
   }
 
   private extractJsonLikeField(rawText: string, fieldName: 'feedback' | 'decision' | 'nextQuestion'): string {
@@ -563,27 +630,104 @@ export class ChatService {
     return `Welcome, let us get started.\n\n${content}`.trim();
   }
 
+  private normalizeScores(scores: any): SectionScores | null {
+    if (!scores || typeof scores !== 'object') {
+      return null;
+    }
+
+    const theory = Number(scores.theory);
+    const coding = Number(scores.coding);
+    const scenario = Number(scores.scenario);
+    const output = Number(scores.output);
+    const parsedScores = [theory, coding, scenario, output];
+
+    if (parsedScores.some((value) => Number.isNaN(value))) {
+      return null;
+    }
+
+    return {
+      theory: Math.max(0, Math.min(10, theory)),
+      coding: Math.max(0, Math.min(10, coding)),
+      scenario: Math.max(0, Math.min(10, scenario)),
+      output: Math.max(0, Math.min(10, output)),
+    };
+  }
+
+  private buildFallbackScores(answer: string, topic: string): SectionScores {
+    const normalized = (answer || '').toLowerCase();
+    const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+    const technicalCueCount = (normalized.match(/\b(function|scope|closure|variable|async|await|promise|array|object|class|component|service|api|query|database|algorithm|loop|interface|type|state|props|hook|module)\b/g) || []).length;
+    const scenarioCueCount = (normalized.match(/\b(if|when|because|for example|for instance|use case|in that case|so that)\b/g) || []).length;
+    const topicMentionBonus = normalized.includes((topic || '').toLowerCase().split(/\s+/)[0] || '') ? 0.5 : 0;
+
+    const theory = Math.min(10, 4.5 + Math.min(wordCount / 12, 2.5) + Math.min(technicalCueCount * 0.5, 2.5) + topicMentionBonus);
+    const coding = Math.min(10, 4.5 + Math.min(wordCount / 14, 2) + Math.min(technicalCueCount * 0.55, 2.5));
+    const scenario = Math.min(10, 4.5 + Math.min(wordCount / 16, 2) + Math.min(scenarioCueCount * 0.8, 2.5));
+    const output = Math.min(10, 5 + Math.min(wordCount / 18, 2) + (normalized.includes('.') ? 0.7 : 0.2));
+
+    return {
+      theory: this.roundScore(theory),
+      coding: this.roundScore(coding),
+      scenario: this.roundScore(scenario),
+      output: this.roundScore(output),
+    };
+  }
+
+  private detectQuestionCategory(question: string): keyof SectionScores {
+    const normalized = (question || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (/\b(output|result|console\s*log|logged|display|print(?:ed|ing)?\s+(?:output|result))\b/.test(normalized)) {
+      return 'output';
+    }
+
+    if (/\b(write|implement|create|build|convert|statement|syntax|code|function)\b/.test(normalized)) {
+      return 'coding';
+    }
+
+    if (/\b(scenario|suppose|imagine|approach|handle|design|real\s+world|what\s+would\s+you\s+do|how\s+would\s+you)\b/.test(normalized)) {
+      return 'scenario';
+    }
+
+    return 'theory';
+  }
+
+  private ensureScoreTracking(session: InterviewSession): void {
+    if (!session.scoreTotals) {
+      session.scoreTotals = this.createEmptyScores();
+    }
+
+    if (!session.scoreCounts) {
+      session.scoreCounts = this.createEmptyScores();
+    }
+
+    if (typeof session.scoreEntries !== 'number' || Number.isNaN(session.scoreEntries)) {
+      session.scoreEntries = 0;
+    }
+  }
+
+  private recordScoreForQuestion(session: InterviewSession, question: string, scores: SectionScores): void {
+    this.ensureScoreTracking(session);
+
+    const category = this.detectQuestionCategory(question);
+    const value = scores[category];
+
+    session.scoreTotals[category] += value;
+    session.scoreCounts[category] += 1;
+    session.scoreEntries += 1;
+  }
+
   private extractRatingsAndCleanReply(reply: string): { cleanedReply: string; scores: SectionScores | null } {
     const ratingsRegex = /Section ratings\s*\(\/10\)\s*:\s*Theory\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Coding\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Scenario\s*:\s*(10|\d(?:\.\d+)?)\s*\|\s*Output\s*:\s*(10|\d(?:\.\d+)?)/i;
     const match = reply.match(ratingsRegex);
 
     let scores: SectionScores | null = null;
     if (match) {
-      const theory = Number.parseFloat(match[1]);
-      const coding = Number.parseFloat(match[2]);
-      const scenario = Number.parseFloat(match[3]);
-      const output = Number.parseFloat(match[4]);
-      const parsedScores = [theory, coding, scenario, output];
-      const hasInvalidScore = parsedScores.some((value) => Number.isNaN(value));
-
-      if (!hasInvalidScore) {
-        scores = {
-          theory: Math.max(0, Math.min(10, theory)),
-          coding: Math.max(0, Math.min(10, coding)),
-          scenario: Math.max(0, Math.min(10, scenario)),
-          output: Math.max(0, Math.min(10, output)),
-        };
-      }
+      scores = this.normalizeScores({
+        theory: match[1],
+        coding: match[2],
+        scenario: match[3],
+        output: match[4],
+      });
     }
 
     const cleanedReply = reply
@@ -618,7 +762,15 @@ export class ChatService {
   }
 
   private getSummary(session: InterviewSession) {
-    if (session.scoreEntries <= 0) {
+    this.ensureScoreTracking(session);
+
+    const theoryCount = session.scoreCounts.theory;
+    const codingCount = session.scoreCounts.coding;
+    const scenarioCount = session.scoreCounts.scenario;
+    const outputCount = session.scoreCounts.output;
+    const entries = theoryCount + codingCount + scenarioCount + outputCount;
+
+    if (entries <= 0) {
       return {
         hasScoreData: false,
         entries: 0,
@@ -627,23 +779,39 @@ export class ChatService {
         scenarioAvg: 0,
         outputAvg: 0,
         overallAvg: 0,
+        theoryCount: 0,
+        codingCount: 0,
+        scenarioCount: 0,
+        outputCount: 0,
       };
     }
 
-    const theoryAvg = this.roundScore(session.scoreTotals.theory / session.scoreEntries);
-    const codingAvg = this.roundScore(session.scoreTotals.coding / session.scoreEntries);
-    const scenarioAvg = this.roundScore(session.scoreTotals.scenario / session.scoreEntries);
-    const outputAvg = this.roundScore(session.scoreTotals.output / session.scoreEntries);
-    const overallAvg = this.roundScore((theoryAvg + codingAvg + scenarioAvg + outputAvg) / 4);
+    const theoryAvg = theoryCount > 0 ? this.roundScore(session.scoreTotals.theory / theoryCount) : 0;
+    const codingAvg = codingCount > 0 ? this.roundScore(session.scoreTotals.coding / codingCount) : 0;
+    const scenarioAvg = scenarioCount > 0 ? this.roundScore(session.scoreTotals.scenario / scenarioCount) : 0;
+    const outputAvg = outputCount > 0 ? this.roundScore(session.scoreTotals.output / outputCount) : 0;
+    const activeAverages = [
+      theoryCount > 0 ? theoryAvg : null,
+      codingCount > 0 ? codingAvg : null,
+      scenarioCount > 0 ? scenarioAvg : null,
+      outputCount > 0 ? outputAvg : null,
+    ].filter((value): value is number => value !== null);
+    const overallAvg = activeAverages.length > 0
+      ? this.roundScore(activeAverages.reduce((sum, value) => sum + value, 0) / activeAverages.length)
+      : 0;
 
     return {
       hasScoreData: true,
-      entries: session.scoreEntries,
+      entries,
       theoryAvg,
       codingAvg,
       scenarioAvg,
       outputAvg,
       overallAvg,
+      theoryCount,
+      codingCount,
+      scenarioCount,
+      outputCount,
     };
   }
 
@@ -821,7 +989,8 @@ Return ONLY one JSON object with this exact shape:
 {
   "feedback": "1-2 short natural sentences",
   "decision": "FOLLOW_UP | NEXT | CHANGE_TOPIC | REPEAT | END",
-  "nextQuestion": "one interview question"
+  "nextQuestion": "one interview question",
+  "scores": { "theory": 0-10, "coding": 0-10, "scenario": 0-10, "output": 0-10 } | null
 }
 
 STRICT RULES:
@@ -830,6 +999,8 @@ STRICT RULES:
 - No trailing commas
 - ALWAYS include "nextQuestion" and keep it non-empty unless decision is END
 - ALWAYS ask exactly ONE question
+- For substantive answers, include numeric scores from 0 to 10 in the scores object
+- For greetings, clarifications, skips, or interview start, set scores to null
 - feedback must sound casual and human: "Got it.", "Sure.", "Fair enough.", "No worries."
 - NEVER use formal or robotic phrases like "Kindly", "That drifts from", or "Your response was"
 - NEVER quote back the candidate's exact words in quote marks inside feedback
@@ -912,6 +1083,7 @@ STRICT RULES:
           decision: String(parsed.decision || 'NEXT').toUpperCase(),
           nextQuestion: parsed.nextQuestion,
           isStructured: true,
+          scores: this.normalizeScores(parsed.scores),
         };
 
       } catch (err) {
@@ -1015,6 +1187,7 @@ Keep it concise. Ask exactly ONE focused question.
       greetingAttemptsForCurrentQuestion: 0,
       redirectAttemptsForCurrentQuestion: 0,
       scoreTotals: this.createEmptyScores(),
+      scoreCounts: this.createEmptyScores(),
       scoreEntries: 0,
       history: [{ role: 'interviewer', content: message }],
     };
@@ -1101,7 +1274,7 @@ Keep it concise. Ask exactly ONE focused question.
       session.redirectAttemptsForCurrentQuestion = 0;
 
       const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your answer?';
-      const message = `Sure, here is the question again:\n\n${safeQuestion}`;
+      const message = this.buildClarificationReply(answer, safeQuestion);
       this.appendHistory(session, answer, message);
 
       return {
@@ -1334,7 +1507,11 @@ Section ratings (/10): Theory: X | Coding: X | Scenario: X | Output: X
     if (!nextQuestion || nextQuestion.trim().length === 0) {
       nextQuestion = "Can you explain this in more detail?";
     }
-    let scores: SectionScores | null = parsedScores;
+    let scores: SectionScores | null = parsedScores || this.normalizeScores(aiResponse.scores);
+
+    if (!scores && shouldCaptureScore) {
+      scores = this.buildFallbackScores(answer, topic);
+    }
 
     //  Decision handling
     if (aiResponse.decision === 'END') {
@@ -1348,11 +1525,7 @@ Section ratings (/10): Theory: X | Coding: X | Scenario: X | Output: X
     const questionChanged = nextQuestion !== session.lastQuestion;
 
     if (scores && shouldCaptureScore) {
-      session.scoreTotals.theory += scores.theory;
-      session.scoreTotals.coding += scores.coding;
-      session.scoreTotals.scenario += scores.scenario;
-      session.scoreTotals.output += scores.output;
-      session.scoreEntries += 1;
+      this.recordScoreForQuestion(session, question, scores);
     }
 
     if (questionChanged) {
