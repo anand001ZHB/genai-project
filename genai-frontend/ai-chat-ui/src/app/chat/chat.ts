@@ -58,7 +58,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
   @ViewChild('answerInput') answerInput?: ElementRef<HTMLTextAreaElement>;
 
   private apiBaseUrl = this.resolveApiBaseUrl();
-  private readonly ratingRangeValidationMessage = 'You can respond only in between 1 to 10.';
   private readonly thinkingDurationSeconds = 30;
   private readonly interviewDurationSeconds = 30 * 60;
   private readonly maxVoiceAnswerSeconds = 120;
@@ -69,11 +68,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
 
   userInput = '';
   level = 'easy';
-  experience = '0-1 years';
   topic = 'JavaScript';
-  selfRating = '';
-  ratingValidationMessage = '';
-  showRatingStep = false;
   interviewStarted = false;
   isAnswerTurn = false;
   isAwaitingResponse = false;
@@ -110,12 +105,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
   transcriptHighlightHtml = '';
   transcriptTips: string[] = [];
   waveLevels: number[] = Array.from({ length: 84 }, () => 0.08);
-  isRatingVoiceListening = false;
-  isRatingVoiceStripVisible = false;
-  private ratingVoicePendingSubmit = false;
-  private ratingSpeechFinal = '';
-  private ratingSpeechLive = '';
-  private ratingVoiceRecognition: SpeechRecognitionLike | null = null;
 
   private recognition: SpeechRecognitionLike | null = null;
   private pendingVoiceSubmit = false;
@@ -245,11 +234,11 @@ export class Chat implements AfterViewChecked, OnDestroy {
   }
 
   get canAnswerNow(): boolean {
-    return this.interviewStarted && this.isAnswerTurn && !this.isAwaitingResponse && !this.showRatingStep;
+    return this.interviewStarted && this.isAnswerTurn && !this.isAwaitingResponse;
   }
 
   get isStartDisabled(): boolean {
-    return this.interviewStarted || this.showRatingStep || this.isAwaitingResponse;
+    return this.interviewStarted || this.isAwaitingResponse;
   }
 
   get hasSelectionChanges(): boolean {
@@ -258,31 +247,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
 
   get isResetDisabled(): boolean {
     return this.isStartDisabled || !this.hasSelectionChanges;
-  }
-
-  get isRatingValid(): boolean {
-    if (!this.selfRating) return false;
-    if (!/^\d+$/.test(this.selfRating.trim())) return false;
-
-    const rating = Number.parseInt(this.selfRating, 10);
-    return !Number.isNaN(rating) && rating >= 1 && rating <= 10;
-  }
-
-  get isRatingInvalid(): boolean {
-    return (!!this.selfRating && !this.isRatingValid) || !!this.ratingValidationMessage;
-  }
-
-  get showRatingValidState(): boolean {
-    return !!this.selfRating && this.isRatingValid && !this.ratingValidationMessage;
-  }
-
-  get isSubmitRatingDisabled(): boolean {
-    const hasAnyInput = !!this.selfRating && this.selfRating.trim().length > 0;
-    return this.isAwaitingResponse || (hasAnyInput && !this.isRatingValid);
-  }
-
-  get hasRatingText(): boolean {
-    return !!this.selfRating && this.selfRating.trim().length > 0;
   }
 
   get hasAnswerText(): boolean {
@@ -467,7 +431,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
 
   startInterview() {
     this.stopInterviewerSpeech();
-    this.stopRatingVoiceCapture();
     this.messages = [];
     this.showEndSummaryModal = false;
     this.showEndConfirmModal = false;
@@ -491,9 +454,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
 
     this.http.post<any>(apiUrl, {
       level: this.level,
-      experience: this.experience,
       topic: this.topic,
-      selfRating: 5,
     }).subscribe({
       next: (res) => {
         const message = this.normalizeInterviewerMessage(res.message || res.reply || 'No response from interviewer.');
@@ -521,240 +482,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
     });
   }
 
-  submitSelfRating() {
-    // Rating step is intentionally bypassed; start interview directly.
-    this.startInterview();
-  }
-
-  onSelfRatingInput(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input) return;
-
-    const digitsOnly = (input.value || '').replace(/\D/g, '');
-    if (!digitsOnly) {
-      this.selfRating = '';
-      input.value = '';
-      this.ratingValidationMessage = '';
-      return;
-    }
-
-    const numeric = Number.parseInt(digitsOnly, 10);
-    if (Number.isNaN(numeric)) {
-      this.selfRating = '';
-      input.value = '';
-      this.ratingValidationMessage = this.ratingRangeValidationMessage;
-      return;
-    }
-
-    this.selfRating = digitsOnly;
-    input.value = this.selfRating;
-
-    if (numeric < 1 || numeric > 10) {
-      this.ratingValidationMessage = this.ratingRangeValidationMessage;
-      return;
-    }
-
-    this.ratingValidationMessage = '';
-  }
-
-  toggleRatingVoiceCapture() {
-    if (!this.speechSupported || this.isAwaitingResponse) return;
-    if (this.isRatingVoiceListening) {
-      this.stopRatingVoiceCapture(false);
-      return;
-    }
-
-    this.isRatingVoiceStripVisible = true;
-    this.startRatingVoiceCapture();
-  }
-
-  private startRatingVoiceCapture() {
-    const speechCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!speechCtor) return;
-
-    this.stopRatingVoiceCapture(false);
-    this.ratingValidationMessage = '';
-    this.ratingVoicePendingSubmit = false;
-    this.ratingSpeechFinal = '';
-    this.ratingSpeechLive = '';
-
-    const recognition = new speechCtor() as SpeechRecognitionLike;
-    this.ratingVoiceRecognition = recognition;
-    recognition.lang = 'en-US';
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      this.ngZone.run(() => {
-        this.isRatingVoiceListening = true;
-        this.isRatingVoiceStripVisible = true;
-      });
-      void this.startAudioVisualizer();
-    };
-
-    recognition.onresult = (event: SpeechRecognitionEventLike) => {
-      this.ngZone.run(() => {
-        let interim = '';
-        let finalChunk = '';
-        for (let i = event.resultIndex; i < event.results.length; i += 1) {
-          const result = event.results[i];
-          const chunk = (result[0]?.transcript || '').trim();
-          if (!chunk) continue;
-          if (result.isFinal) {
-            finalChunk += `${chunk} `;
-          } else {
-            interim += `${chunk} `;
-          }
-        }
-
-        if (finalChunk) {
-          this.ratingSpeechFinal = `${this.ratingSpeechFinal} ${finalChunk}`.trim();
-        }
-
-        this.ratingSpeechLive = interim.trim();
-        const fullTranscript = `${this.ratingSpeechFinal} ${this.ratingSpeechLive}`.trim();
-        const parsed = this.extractRatingFromSpeech(fullTranscript);
-        if (parsed !== null) {
-          this.selfRating = String(parsed);
-          this.ratingValidationMessage = '';
-        }
-      });
-    };
-
-    recognition.onerror = () => {
-      this.ngZone.run(() => {
-        this.isRatingVoiceListening = false;
-        this.isRatingVoiceStripVisible = false;
-        this.ratingVoicePendingSubmit = false;
-        this.stopAudioVisualizer();
-        if (!this.selfRating.trim()) {
-          this.ratingValidationMessage = 'Voice input failed. Please say a rating between 1 and 10.';
-        }
-        this.ratingVoiceRecognition = null;
-      });
-    };
-
-    recognition.onend = () => {
-      this.ngZone.run(() => {
-        const shouldSubmit = this.ratingVoicePendingSubmit;
-        this.isRatingVoiceListening = false;
-        this.isRatingVoiceStripVisible = false;
-        this.ratingVoicePendingSubmit = false;
-        this.stopAudioVisualizer();
-        this.ratingVoiceRecognition = null;
-
-        if (shouldSubmit) {
-          const fullTranscript = `${this.ratingSpeechFinal} ${this.ratingSpeechLive}`.trim();
-          const parsed = this.extractRatingFromSpeech(fullTranscript);
-          if (parsed !== null) {
-            this.selfRating = String(parsed);
-          }
-
-          if (this.selfRating.trim()) {
-            this.submitSelfRating();
-          } else {
-            this.ratingValidationMessage = 'Could not detect a rating. Say a number between 1 and 10.';
-          }
-        }
-      });
-    };
-
-    try {
-      recognition.start();
-    } catch {
-      this.isRatingVoiceListening = false;
-      this.isRatingVoiceStripVisible = false;
-      this.ratingVoicePendingSubmit = false;
-    }
-  }
-
-  cancelRatingVoiceCapture() {
-    this.isRatingVoiceStripVisible = false;
-    this.ratingSpeechFinal = '';
-    this.ratingSpeechLive = '';
-    this.stopRatingVoiceCapture(false);
-  }
-
-  submitRatingVoiceCapture() {
-    if (this.isRatingVoiceListening) {
-      this.stopRatingVoiceCapture(true);
-      return;
-    }
-
-    if (this.selfRating.trim()) {
-      this.submitSelfRating();
-      return;
-    }
-
-    this.ratingValidationMessage = 'Could not detect a rating. Say a number between 1 and 10.';
-  }
-
-  private stopRatingVoiceCapture(submit = false) {
-    if (!this.ratingVoiceRecognition) {
-      if (submit && this.selfRating.trim()) {
-        this.submitSelfRating();
-      }
-      return;
-    }
-
-    this.ratingVoicePendingSubmit = submit;
-    try {
-      this.ratingVoiceRecognition.stop();
-    } catch {
-      this.isRatingVoiceListening = false;
-      this.isRatingVoiceStripVisible = false;
-      this.ratingVoicePendingSubmit = false;
-      this.ratingSpeechFinal = '';
-      this.ratingSpeechLive = '';
-      this.stopAudioVisualizer();
-      this.ratingVoiceRecognition = null;
-    }
-  }
-
-  private extractRatingFromSpeech(transcript: string): number | null {
-    const normalized = (transcript || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!normalized) return null;
-
-    const numericMatch = normalized.match(/\b(10|[1-9])\b/);
-    if (numericMatch) {
-      const numeric = Number.parseInt(numericMatch[1], 10);
-      if (numeric >= 1 && numeric <= 10) return numeric;
-    }
-
-    const map: Record<string, number> = {
-      one: 1,
-      won: 1,
-      two: 2,
-      to: 2,
-      too: 2,
-      three: 3,
-      four: 4,
-      for: 4,
-      five: 5,
-      six: 6,
-      seven: 7,
-      eight: 8,
-      ate: 8,
-      nine: 9,
-      ten: 10,
-    };
-
-    for (const [word, value] of Object.entries(map)) {
-      if (new RegExp(`\\b${word}\\b`, 'i').test(normalized)) {
-        return value;
-      }
-    }
-
-    return null;
-  }
-
-  onSelfRatingKeydown(event: KeyboardEvent) {
-    const blockedKeys = ['.', ',', '-', '+', 'e', 'E'];
-    if (blockedKeys.includes(event.key)) {
-      event.preventDefault();
-    }
-  }
 
   confirmEndInterview() {
     if (!this.interviewStarted) return;
@@ -799,7 +526,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
         this.interviewStarted = false;
         this.isAnswerTurn = false;
         this.isAwaitingResponse = false;
-        this.showRatingStep = false;
         this.showEndSummaryModal = true;
         this.sessionId = '';
         this.lastQuestion = '';
@@ -811,7 +537,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
         this.interviewStarted = false;
         this.isAnswerTurn = false;
         this.isAwaitingResponse = false;
-        this.showRatingStep = false;
         this.showEndSummaryModal = true;
         this.sessionId = '';
         this.lastQuestion = '';
@@ -820,11 +545,9 @@ export class Chat implements AfterViewChecked, OnDestroy {
   }
 
   practiceMore() {
-    this.stopRatingVoiceCapture();
     this.cancelVoiceActivities();
     this.showEndSummaryModal = false;
     this.showEndConfirmModal = false;
-    this.showRatingStep = false;
     this.resetInterviewTimer();
     this.interviewStarted = false;
     this.isAnswerTurn = false;
@@ -832,7 +555,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.lastQuestion = '';
     this.sessionId = '';
     this.userInput = '';
-    this.selfRating = '';
     this.messages = [];
     this.messageIdCounter = 0;
     this.endNotice = '';
@@ -846,7 +568,6 @@ export class Chat implements AfterViewChecked, OnDestroy {
   }
 
   ngOnDestroy() {
-    this.stopRatingVoiceCapture();
     this.cancelVoiceActivities();
     this.clearInterviewTimer();
 
@@ -1231,6 +952,30 @@ export class Chat implements AfterViewChecked, OnDestroy {
 
   onSpeechVoiceChange() {
     this.stopInterviewerSpeech();
+    this.previewSelectedVoice();
+  }
+
+  private previewSelectedVoice() {
+    if (!this.ttsSupported || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return;
+    }
+
+    const previewText = 'Hello! This is a preview of the selected voice.';
+    const utterance = new SpeechSynthesisUtterance(previewText);
+    const selectedVoice = this.getSelectedSpeechVoice();
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      utterance.lang = selectedVoice.lang;
+    }
+
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    window.speechSynthesis.cancel();
+    setTimeout(() => {
+      window.speechSynthesis.speak(utterance);
+    }, 120);
   }
 
   private initializeSpeechVoices() {

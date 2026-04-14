@@ -9,11 +9,9 @@ export class ChatController {
   @Post('start')
   startInterview(
     @Body('level') level: string,
-    @Body('experience') experience: string,
     @Body('topic') topic: string,
-    @Body('selfRating') selfRating: number,
   ): Promise<any> {
-    return this.chatService.startInterview({ level, experience, topic, selfRating });
+    return this.chatService.startInterview({ level, topic });
   }
 
   @Post('answer')

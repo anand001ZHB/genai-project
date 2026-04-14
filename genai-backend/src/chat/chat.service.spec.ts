@@ -46,9 +46,7 @@ describe('ChatService', () => {
       id: 'session-1',
       config: {
         level: 'easy',
-        experience: '0-1 years',
         topic: 'JavaScript',
-        selfRating: 5,
       },
       lastQuestion: 'What is a closure?',
       stuckAttemptsForCurrentQuestion: 0,
@@ -87,9 +85,7 @@ describe('ChatService', () => {
       id: 'session-2',
       config: {
         level: 'easy',
-        experience: '0-1 years',
         topic: 'JavaScript',
-        selfRating: 5,
       },
       lastQuestion: 'Can you explain the difference between let and const?',
       stuckAttemptsForCurrentQuestion: 1,
@@ -126,9 +122,7 @@ describe('ChatService', () => {
 
     const result = await service.startInterview({
       level: 'easy',
-      experience: '0-1 years',
       topic: 'JavaScript',
-      selfRating: 5,
     });
 
     expect(result.message.startsWith('Welcome')).toBe(true);
@@ -147,9 +141,7 @@ describe('ChatService', () => {
 
     const result = await service.startInterview({
       level: 'easy',
-      experience: '0-1 years',
       topic: 'JavaScript',
-      selfRating: 5,
     });
 
     expect(result.message).toBe('Good morning, let\'s get started. Can you explain closures in JavaScript?');
@@ -174,9 +166,7 @@ describe('ChatService', () => {
       id: 'session-3',
       config: {
         level: 'easy',
-        experience: '0-1 years',
         topic: 'JavaScript',
-        selfRating: 5,
       },
       lastQuestion: 'What is a closure?',
       stuckAttemptsForCurrentQuestion: 0,
@@ -209,9 +199,7 @@ describe('ChatService', () => {
       id: 'session-4',
       config: {
         level: 'easy',
-        experience: '0-1 years',
         topic: 'JavaScript',
-        selfRating: 5,
       },
       lastQuestion: "What's the JavaScript statement to print a line with 'Hello, JavaScript!' inside?",
       stuckAttemptsForCurrentQuestion: 0,
@@ -262,9 +250,7 @@ describe('ChatService', () => {
       id: 'session-5',
       config: {
         level: 'easy',
-        experience: '0-1 years',
         topic: 'JavaScript',
-        selfRating: 5,
       },
       lastQuestion: 'What is hoisting in JavaScript?',
       stuckAttemptsForCurrentQuestion: 0,
@@ -303,9 +289,7 @@ describe('ChatService', () => {
       id: 'session-6',
       config: {
         level: 'easy',
-        experience: '0-1 years',
         topic: 'JavaScript',
-        selfRating: 5,
       },
       lastQuestion: 'What is the difference between let and var in JavaScript?',
       stuckAttemptsForCurrentQuestion: 0,
@@ -341,9 +325,7 @@ describe('ChatService', () => {
       id: 'session-7',
       config: {
         level: 'easy',
-        experience: '0-1 years',
         topic: 'JavaScript',
-        selfRating: 5,
       },
       lastQuestion: 'What is a closure in JavaScript?',
       stuckAttemptsForCurrentQuestion: 0,
@@ -380,9 +362,7 @@ describe('ChatService', () => {
       id: 'session-8',
       config: {
         level: 'easy',
-        experience: '0-1 years',
         topic: 'JavaScript',
-        selfRating: 5,
       },
       lastQuestion: 'Can you briefly tell me what JavaScript is used for?',
       stuckAttemptsForCurrentQuestion: 0,
@@ -421,9 +401,7 @@ describe('ChatService', () => {
       id: 'session-9',
       config: {
         level: 'easy',
-        experience: '0-1 years',
         topic: 'JavaScript',
-        selfRating: 5,
       },
       lastQuestion: 'What is JavaScript used for?',
       stuckAttemptsForCurrentQuestion: 0,

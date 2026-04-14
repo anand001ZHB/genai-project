@@ -5,9 +5,7 @@ type ResponseSignal = 'normal' | 'dont_know' | 'move_on' | 'greeting' | 'end_int
 
 interface InterviewConfig {
   level?: string;
-  experience?: string;
   topic?: string;
-  selfRating?: number;
 }
 
 interface AnswerPayload extends InterviewConfig {
@@ -1216,16 +1214,13 @@ STRICT RULES:
 
   async startInterview(config: InterviewConfig) {
     const level = config.level || 'medium';
-    const experience = config.experience || '0-1 years';
     const topic = config.topic || 'JavaScript';
-    const selfRating = config.selfRating || 5;
     const questionDifficulty = level;
 
     const startPrompt = `Start a realistic technical interview with a candidate.
 
 Setup:
 - Interview difficulty: ${level}
-- Candidate experience: ${experience}
 - Topic to be interviewed on: ${topic}
 - Ask the first question at ${questionDifficulty} level
 
@@ -1245,9 +1240,7 @@ Keep it concise. Ask exactly ONE focused question.
       id: sessionId,
       config: {
         level,
-        experience,
         topic,
-        selfRating,
       },
       lastQuestion: question,
       stuckAttemptsForCurrentQuestion: 0,
@@ -1312,7 +1305,6 @@ Keep it concise. Ask exactly ONE focused question.
     }
 
     const level = session.config.level || 'medium';
-    const experience = session.config.experience || '0-1 years';
     const topic = session.config.topic || 'JavaScript';
     const question = session.lastQuestion || 'Interview question';
     const responseSignal = this.detectResponseSignal(answer);
