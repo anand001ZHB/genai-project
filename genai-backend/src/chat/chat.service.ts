@@ -241,6 +241,11 @@ export class ChatService {
       /\bmeaning\s+of\b/i,
       /^\s*what\s+is\s+[a-z][a-z0-9'_-]{1,30}\s*\??$/i,
       /\b[a-z][a-z0-9'_-]{1,30}\s+means?\s*\??$/i,
+      /^\s*(what|why|when|where|who|how|which)\b.*\??\s*$/i,
+      /^\s*is\s+.+\??\s*$/i,
+      /^\s*does\s+.+\??\s*$/i,
+      /^\s*do\s+.+\??\s*$/i,
+      /^\s*can\s+.+\??\s*$/i,
     ];
 
     return patterns.some((pattern) => pattern.test(normalized));

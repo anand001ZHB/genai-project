@@ -297,4 +297,42 @@ describe('ChatService', () => {
     expect(result.summary.theoryAvg).toBe(8);
     expect(result.summary.codingAvg).toBe(0);
   });
+
+  it('treats follow-up why and how questions as clarification instead of confusion', async () => {
+    service['sessions'].set('session-6', {
+      id: 'session-6',
+      config: {
+        level: 'easy',
+        experience: '0-1 years',
+        topic: 'JavaScript',
+        selfRating: 5,
+      },
+      lastQuestion: 'What is the difference between let and var in JavaScript?',
+      stuckAttemptsForCurrentQuestion: 0,
+      greetingAttemptsForCurrentQuestion: 0,
+      redirectAttemptsForCurrentQuestion: 0,
+      scoreTotals: {
+        theory: 0,
+        coding: 0,
+        scenario: 0,
+        output: 0,
+      },
+      scoreCounts: {
+        theory: 0,
+        coding: 0,
+        scenario: 0,
+        output: 0,
+      },
+      scoreEntries: 0,
+      history: [{ role: 'interviewer', content: 'What is the difference between let and var in JavaScript?' }],
+    } as any);
+
+    const result = await service.evaluateAnswer({
+      sessionId: 'session-6',
+      answer: 'why is var global?',
+    });
+
+    expect(result.progress.responseSignal).toBe('clarification');
+    expect(result.message.toLowerCase()).not.toContain('could not fully understand');
+  });
 });
