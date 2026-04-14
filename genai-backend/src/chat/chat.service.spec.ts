@@ -335,4 +335,123 @@ describe('ChatService', () => {
     expect(result.progress.responseSignal).toBe('clarification');
     expect(result.message.toLowerCase()).not.toContain('could not fully understand');
   });
+
+  it('echoes repeated ok acknowledgements using the exact user term', async () => {
+    service['sessions'].set('session-7', {
+      id: 'session-7',
+      config: {
+        level: 'easy',
+        experience: '0-1 years',
+        topic: 'JavaScript',
+        selfRating: 5,
+      },
+      lastQuestion: 'What is a closure in JavaScript?',
+      stuckAttemptsForCurrentQuestion: 0,
+      greetingAttemptsForCurrentQuestion: 1,
+      redirectAttemptsForCurrentQuestion: 0,
+      scoreTotals: {
+        theory: 0,
+        coding: 0,
+        scenario: 0,
+        output: 0,
+      },
+      scoreCounts: {
+        theory: 0,
+        coding: 0,
+        scenario: 0,
+        output: 0,
+      },
+      scoreEntries: 0,
+      history: [{ role: 'interviewer', content: 'What is a closure in JavaScript?' }],
+    } as any);
+
+    const result = await service.evaluateAnswer({
+      sessionId: 'session-7',
+      answer: 'ok',
+    });
+
+    expect(result.progress.responseSignal).toBe('greeting');
+    expect(result.message.toLowerCase()).toContain('ok');
+    expect(result.message.toLowerCase()).not.toContain('hello');
+  });
+
+  it('resets the repeat warning when the user changes from hello to ok', async () => {
+    service['sessions'].set('session-8', {
+      id: 'session-8',
+      config: {
+        level: 'easy',
+        experience: '0-1 years',
+        topic: 'JavaScript',
+        selfRating: 5,
+      },
+      lastQuestion: 'Can you briefly tell me what JavaScript is used for?',
+      stuckAttemptsForCurrentQuestion: 0,
+      greetingAttemptsForCurrentQuestion: 2,
+      lastGreetingInput: 'hello',
+      redirectAttemptsForCurrentQuestion: 0,
+      scoreTotals: {
+        theory: 0,
+        coding: 0,
+        scenario: 0,
+        output: 0,
+      },
+      scoreCounts: {
+        theory: 0,
+        coding: 0,
+        scenario: 0,
+        output: 0,
+      },
+      scoreEntries: 0,
+      history: [{ role: 'interviewer', content: 'Can you briefly tell me what JavaScript is used for?' }],
+    } as any);
+
+    const result = await service.evaluateAnswer({
+      sessionId: 'session-8',
+      answer: 'ok',
+    });
+
+    expect(result.progress.responseSignal).toBe('greeting');
+    expect(result.message.toLowerCase()).toContain('i received "ok"');
+    expect(result.message.toLowerCase()).not.toContain('final reminder');
+    expect(result.message.toLowerCase()).not.toContain('repeating "ok"');
+  });
+
+  it('treats repeated multi-word inputs like ok ok ok as acknowledgements', async () => {
+    service['sessions'].set('session-9', {
+      id: 'session-9',
+      config: {
+        level: 'easy',
+        experience: '0-1 years',
+        topic: 'JavaScript',
+        selfRating: 5,
+      },
+      lastQuestion: 'What is JavaScript used for?',
+      stuckAttemptsForCurrentQuestion: 0,
+      greetingAttemptsForCurrentQuestion: 0,
+      redirectAttemptsForCurrentQuestion: 0,
+      scoreTotals: {
+        theory: 0,
+        coding: 0,
+        scenario: 0,
+        output: 0,
+      },
+      scoreCounts: {
+        theory: 0,
+        coding: 0,
+        scenario: 0,
+        output: 0,
+      },
+      scoreEntries: 0,
+      history: [{ role: 'interviewer', content: 'What is JavaScript used for?' }],
+    } as any);
+
+    const result = await service.evaluateAnswer({
+      sessionId: 'session-9',
+      answer: 'ok ok ok',
+    });
+
+    expect(result.progress.responseSignal).toBe('greeting');
+    expect(result.message.toLowerCase()).toContain('ok ok ok');
+    expect(result.message.toLowerCase()).not.toContain('could not fully understand');
+  });
 });

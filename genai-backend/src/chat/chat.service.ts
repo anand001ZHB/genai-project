@@ -36,6 +36,7 @@ interface InterviewSession {
   lastQuestion: string;
   stuckAttemptsForCurrentQuestion: number;
   greetingAttemptsForCurrentQuestion: number;
+  lastGreetingInput?: string;
   redirectAttemptsForCurrentQuestion: number;
   scoreTotals: SectionScores;
   scoreCounts: SectionScores;
@@ -455,6 +456,69 @@ export class ChatService {
     return words.join(' ') || 'that response';
   }
 
+  private getExactUserTerm(message: string, maxLength = 40): string {
+    const cleaned = (message || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^["'“”]+|["'“”]+$/g, '');
+
+    if (!cleaned) {
+      return 'that response';
+    }
+
+    if (cleaned.length <= maxLength) {
+      return cleaned;
+    }
+
+    return `${cleaned.slice(0, maxLength - 1).trimEnd()}…`;
+  }
+
+  private normalizeAcknowledgementKey(message: string): string {
+    const cleaned = (message || '')
+      .toLowerCase()
+      .replace(/[’`]/g, "'")
+      .replace(/[^a-z0-9\s']/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleaned) {
+      return '';
+    }
+
+    const tokenAliases: Record<string, string> = {
+      okay: 'ok',
+      yup: 'yes',
+      yep: 'yes',
+      yeah: 'yes',
+    };
+
+    const tokens = cleaned
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((token) => tokenAliases[token] || token);
+
+    const collapsed = tokens.filter((token, index) => index === 0 || token !== tokens[index - 1]);
+    return collapsed.join(' ');
+  }
+
+  private isGreetingOrAcknowledgementOnly(cleaned: string): boolean {
+    if (!cleaned) {
+      return false;
+    }
+
+    const greetingOnlyRegex = /^(?:(?:hi|hello|hey|hola|good morning|good afternoon|good evening)(?:\s+(?:hi|hello|hey|hola|good morning|good afternoon|good evening|there|team|all|everyone|sir|madam|mam))*)$/i;
+    const acknowledgmentOnlyRegex = /^(?:(?:ok|okay|alright|sure|got it|sounds good|understood|i see|noted|yep|yup|yeah|cool|great|nice|right|go on|go ahead|fine|hmm+|ah+|oh okay|oh ok|oh right|ok cool|ok sure|ok fine|ok alright)(?:\s+(?:ok|okay|alright|sure|got it|sounds good|understood|i see|noted|yep|yup|yeah|cool|great|nice|right|go on|go ahead|fine|hmm+|ah+|oh okay|oh ok|oh right|ok cool|ok sure|ok fine|ok alright))*)$/i;
+
+    if (greetingOnlyRegex.test(cleaned) || acknowledgmentOnlyRegex.test(cleaned)) {
+      return true;
+    }
+
+    const shortReplyTokens = new Set(['hi', 'hello', 'hey', 'hola', 'ok', 'okay', 'alright', 'sure', 'understood', 'noted', 'yep', 'yup', 'yeah', 'cool', 'great', 'nice', 'right', 'fine', 'oh']);
+    const tokens = cleaned.split(/\s+/).filter(Boolean);
+
+    return tokens.length > 0 && tokens.length <= 5 && tokens.every((token) => shortReplyTokens.has(token) || /^hmm+$/.test(token) || /^ah+$/.test(token));
+  }
+
   private detectResponseSignal(message: string): ResponseSignal {
     const normalized = (message || '')
       .toLowerCase()
@@ -573,9 +637,7 @@ export class ChatService {
       return 'dont_know';
     }
 
-    const greetingOnlyRegex = /^(?:(?:hi|hello|hey|hola|good morning|good afternoon|good evening)(?:\s+(?:hi|hello|hey|hola|good morning|good afternoon|good evening|there|team|all|everyone|sir|madam|mam))*)$/i;
-    const acknowledgmentOnlyRegex = /^(?:ok|okay|alright|sure|got it|sounds good|understood|i see|noted|yep|yup|yeah|cool|great|nice|right|go on|go ahead|fine|hmm+|ah+|oh okay|oh ok|oh right|ok cool|ok sure|ok fine|ok alright)$/i;
-    if (cleaned.length > 0 && (greetingOnlyRegex.test(cleaned) || acknowledgmentOnlyRegex.test(cleaned))) {
+    if (this.isGreetingOrAcknowledgementOnly(cleaned)) {
       return 'greeting';
     }
 
@@ -822,28 +884,28 @@ export class ChatService {
 
   private buildGreetingReply(question: string, repeatCount: number, answer: string) {
     const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your approach?';
-    const snippet = this.summarizeUserSnippet(answer, 3);
+    const exactTerm = this.getExactUserTerm(answer);
 
     if (repeatCount <= 1) {
       const firstReplies = [
-        `Hey, good to hear from you. Can you walk me through this: ${safeQuestion}`,
-        `Hi there. Let us keep going with this: ${safeQuestion}`,
-        `Nice to hear from you. Please answer this: ${safeQuestion}`,
+        `I heard "${exactTerm}". Please answer this question in your own words: ${safeQuestion}`,
+        `I received "${exactTerm}". Let us continue with this: ${safeQuestion}`,
+        `Noted "${exactTerm}". Please answer this: ${safeQuestion}`,
       ];
       return firstReplies[Math.floor(Math.random() * firstReplies.length)];
     }
 
     if (repeatCount === 2) {
       const secondReplies = [
-        `No worries, I heard "${snippet}". When you are ready, answer this question: ${safeQuestion}`,
-        `All good, I got "${snippet}". Let us continue with: ${safeQuestion}`,
+        `No worries, I heard "${exactTerm}". When you are ready, answer this question: ${safeQuestion}`,
+        `All good, I got "${exactTerm}". Let us continue with: ${safeQuestion}`,
       ];
       return secondReplies[Math.floor(Math.random() * secondReplies.length)];
     }
 
     const repeatReplies = [
-      `I hear "${snippet}" again. Please choose one: answer this question now, or say "move on". ${safeQuestion}`,
-      `You are repeating greetings ("${snippet}"). Please choose one: answer now, or say "move on". ${safeQuestion}`,
+      `I hear "${exactTerm}" again. Please choose one: answer this question now, or say "move on". ${safeQuestion}`,
+      `You are repeating "${exactTerm}". Please choose one: answer now, or say "move on". ${safeQuestion}`,
     ];
     return repeatReplies[Math.floor(Math.random() * repeatReplies.length)];
   }
@@ -1190,6 +1252,7 @@ Keep it concise. Ask exactly ONE focused question.
       lastQuestion: question,
       stuckAttemptsForCurrentQuestion: 0,
       greetingAttemptsForCurrentQuestion: 0,
+      lastGreetingInput: '',
       redirectAttemptsForCurrentQuestion: 0,
       scoreTotals: this.createEmptyScores(),
       scoreCounts: this.createEmptyScores(),
@@ -1276,6 +1339,7 @@ Keep it concise. Ask exactly ONE focused question.
 
     if (responseSignal === 'clarification') {
       session.greetingAttemptsForCurrentQuestion = 0;
+      session.lastGreetingInput = '';
       session.redirectAttemptsForCurrentQuestion = 0;
 
       const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your answer?';
@@ -1299,13 +1363,19 @@ Keep it concise. Ask exactly ONE focused question.
     if (responseSignal === 'dont_know' || responseSignal === 'move_on') {
       session.stuckAttemptsForCurrentQuestion += 1;
       session.greetingAttemptsForCurrentQuestion = 0;
+      session.lastGreetingInput = '';
       session.redirectAttemptsForCurrentQuestion = 0;
     } else if (responseSignal === 'greeting') {
-      session.greetingAttemptsForCurrentQuestion += 1;
+      const greetingKey = this.normalizeAcknowledgementKey(answer);
+      session.greetingAttemptsForCurrentQuestion = greetingKey && greetingKey === session.lastGreetingInput
+        ? session.greetingAttemptsForCurrentQuestion + 1
+        : 1;
+      session.lastGreetingInput = greetingKey;
       session.redirectAttemptsForCurrentQuestion = 0;
     } else {
       session.stuckAttemptsForCurrentQuestion = 0;
       session.greetingAttemptsForCurrentQuestion = 0;
+      session.lastGreetingInput = '';
     }
 
     const stuckAttempts = session.stuckAttemptsForCurrentQuestion;
@@ -1387,14 +1457,15 @@ Keep it concise. Ask exactly ONE focused question.
     if (responseSignal === 'greeting') {
       const safeQuestion = this.extractQuestion(question || '').trim() || 'Can you walk me through your answer?';
       const repeatCount = session.greetingAttemptsForCurrentQuestion;
+      const exactTerm = this.getExactUserTerm(answer);
       let message = '';
 
       if (repeatCount <= 1) {
-        message = `I asked a question. Please answer it in your own words, or say "move on" if you want to skip.\n\n${safeQuestion}`;
+        message = `I received "${exactTerm}". Please answer the question in your own words, or say "move on" if you want to skip.\n\n${safeQuestion}`;
       } else if (repeatCount === 2) {
-        message = `Saying "hello" repeatedly will not help in an interview. Please answer the question now, or type "move on" to skip.\n\n${safeQuestion}`;
+        message = `Saying "${exactTerm}" repeatedly will not help in an interview. Please answer the question now, or type "move on" to skip.\n\n${safeQuestion}`;
       } else if (repeatCount === 3) {
-        message = `This is your final reminder: please answer the question instead of repeating greetings. If you continue, I will end this interview.\n\n${safeQuestion}`;
+        message = `This is your final reminder: please answer the question instead of repeating "${exactTerm}". If you continue, I will end this interview.\n\n${safeQuestion}`;
       } else {
         const summary = this.getSummary(session);
         this.sessions.delete(sessionId);
@@ -1438,6 +1509,7 @@ Keep it concise. Ask exactly ONE focused question.
         session.lastQuestion = nextQuestion;
         session.stuckAttemptsForCurrentQuestion = 0;
         session.greetingAttemptsForCurrentQuestion = 0;
+        session.lastGreetingInput = '';
         session.redirectAttemptsForCurrentQuestion = 0;
       }
       this.appendHistory(session, answer, message);
