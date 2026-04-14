@@ -520,6 +520,8 @@ export class ChatService {
       .replace(/\byour\s+response\s+was\b/gi, 'that was')
       .replace(/\byou\s+said\b/gi, 'from what I heard')
       .replace(/\blet'?s\s+focus\s+on\b/gi, 'let us focus on')
+      .replace(/^["'“”]+/, '')
+      .replace(/["'“”]+$/, '')
       .replace(/\s{2,}/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
@@ -529,13 +531,34 @@ export class ChatService {
     const text = (reply || '').trim();
     if (!text) return 'Welcome, let us get started.';
 
-    const greetingRegex = /^(welcome|hello|hi\b|good\s+to\s+have\s+you\s+here|nice\s+to\s+meet\s+you)/i;
-    if (greetingRegex.test(text)) {
-      return text;
+    const greetingRegex = /^(welcome|hello|hi\b|good\s+morning|good\s+afternoon|good\s+evening|good\s+to\s+have\s+you\s+here|nice\s+to\s+meet\s+you)/i;
+    const cleanedLines = text
+      .split(/\n+/)
+      .map((line) => line.trim().replace(/^["'“”]+/, '').replace(/["'“”]+$/, '').trim())
+      .filter(Boolean);
+
+    if (!cleanedLines.length) {
+      return 'Welcome, let us get started.';
     }
 
-    const withoutAck = text.replace(/^(got it|sure|alright|fair enough|no worries|okay|ok|great)\s*[.!,-]*\s*/i, '').trim();
-    const content = withoutAck || text;
+    if (cleanedLines.length > 1 && greetingRegex.test(cleanedLines[0]) && greetingRegex.test(cleanedLines[1])) {
+      cleanedLines[1] = cleanedLines[1]
+        .replace(/^(welcome|hello|hi\b|good\s+morning|good\s+afternoon|good\s+evening|good\s+to\s+have\s+you\s+here|nice\s+to\s+meet\s+you)[^?.!]*[?.!]\s*/i, '')
+        .trim();
+
+      if (!cleanedLines[1]) {
+        cleanedLines.splice(1, 1);
+      }
+    }
+
+    const normalizedText = cleanedLines.join('\n\n').trim();
+
+    if (greetingRegex.test(normalizedText)) {
+      return normalizedText;
+    }
+
+    const withoutAck = normalizedText.replace(/^(got it|sure|alright|fair enough|no worries|okay|ok|great)\s*[.!,-]*\s*/i, '').trim();
+    const content = withoutAck || normalizedText;
 
     return `Welcome, let us get started.\n\n${content}`.trim();
   }

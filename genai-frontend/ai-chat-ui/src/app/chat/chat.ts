@@ -56,6 +56,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   private apiBaseUrl = this.resolveApiBaseUrl();
   private readonly ratingRangeValidationMessage = 'You can respond only in between 1 to 10.';
   private readonly thinkingDurationSeconds = 30;
+  private readonly interviewDurationSeconds = 30 * 60;
   private readonly maxVoiceAnswerSeconds = 120;
   private readonly silenceTimeoutMs = 3000;
   private readonly initialSpeechTimeoutMs = 8000;
@@ -92,6 +93,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   selectedSpeechVoiceName = '';
   isThinking = false;
   thinkSecondsLeft = 0;
+  interviewSecondsLeft = this.interviewDurationSeconds;
   isRecording = false;
   recordSecondsLeft = 0;
   isSpeakingQuestion = false;
@@ -115,6 +117,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   private pendingVoiceSubmit = false;
   private stopRequested = false;
   private thinkingIntervalId: ReturnType<typeof setInterval> | null = null;
+  private interviewIntervalId: ReturnType<typeof setInterval> | null = null;
   private recordingIntervalId: ReturnType<typeof setInterval> | null = null;
   private silenceTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private initialSpeechTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -361,6 +364,21 @@ export class Chat implements AfterViewChecked, OnDestroy {
     return `${Math.max(0, Math.min(100, this.outputAverage * 10))}%`;
   }
 
+  get showInterviewTimer(): boolean {
+    return this.interviewStarted || this.isAwaitingResponse;
+  }
+
+  get interviewTimerDisplay(): string {
+    const totalSeconds = Math.max(0, this.interviewSecondsLeft);
+    const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  }
+
+  get isInterviewTimerWarning(): boolean {
+    return this.interviewSecondsLeft > 0 && this.interviewSecondsLeft <= 5 * 60;
+  }
+
   enterPlatform() {
     this.showWelcomeScreen = false;
   }
@@ -391,6 +409,38 @@ export class Chat implements AfterViewChecked, OnDestroy {
     }
   }
 
+  private resetInterviewTimer() {
+    this.clearInterviewTimer();
+    this.interviewSecondsLeft = this.interviewDurationSeconds;
+  }
+
+  private startInterviewTimer() {
+    this.clearInterviewTimer();
+    this.interviewSecondsLeft = this.interviewDurationSeconds;
+
+    this.interviewIntervalId = setInterval(() => {
+      if (this.interviewSecondsLeft > 0) {
+        this.interviewSecondsLeft -= 1;
+      }
+
+      if (this.interviewSecondsLeft <= 0) {
+        this.interviewSecondsLeft = 0;
+        this.clearInterviewTimer();
+
+        if (this.interviewStarted) {
+          this.endInterview('Time is up. The interview has ended. Here is your summary.');
+        }
+      }
+    }, 1000);
+  }
+
+  private clearInterviewTimer() {
+    if (this.interviewIntervalId) {
+      clearInterval(this.interviewIntervalId);
+      this.interviewIntervalId = null;
+    }
+  }
+
   startInterview() {
     this.stopInterviewerSpeech();
     this.stopRatingVoiceCapture();
@@ -406,6 +456,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.sessionId = '';
     this.endNotice = '';
     this.voiceErrorMessage = '';
+    this.resetInterviewTimer();
     this.resetVoiceRuntime();
     this.resetAnswerInputHeight();
 
@@ -429,6 +480,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
         this.applySummary(res.summary);
         this.speakQuestionWithDelay(message);
         this.interviewStarted = true;
+        this.startInterviewTimer();
         this.isAwaitingResponse = false;
         this.isAnswerTurn = true;
         this.focusAnswerInput();
@@ -694,10 +746,11 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.endInterview();
   }
 
-  endInterview() {
+  endInterview(endMessage = 'Okay, ending the interview. Here is your summary.') {
     if (!this.interviewStarted) return;
 
     this.showEndConfirmModal = false;
+    this.clearInterviewTimer();
 
     this.stopInterviewerSpeech();
     this.cancelVoiceActivities();
@@ -714,10 +767,10 @@ export class Chat implements AfterViewChecked, OnDestroy {
           this.applySummary(res.summary);
         }
 
-        const endMessage = 'Okay, ending the interview. Here is your summary.';
         const aiMessage = this.createMessage('ai', marked.parse(endMessage) as string);
         this.messages.push(aiMessage);
         this.endNotice = endMessage;
+        this.clearInterviewTimer();
 
         this.interviewStarted = false;
         this.isAnswerTurn = false;
@@ -729,7 +782,8 @@ export class Chat implements AfterViewChecked, OnDestroy {
         this.scrollToMessageStart(aiMessage.id, 'smooth');
       },
       error: () => {
-        this.endNotice = 'Okay, ending the interview. Here is your summary.';
+        this.endNotice = endMessage;
+        this.clearInterviewTimer();
         this.interviewStarted = false;
         this.isAnswerTurn = false;
         this.isAwaitingResponse = false;
@@ -747,6 +801,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
     this.showEndSummaryModal = false;
     this.showEndConfirmModal = false;
     this.showRatingStep = false;
+    this.resetInterviewTimer();
     this.interviewStarted = false;
     this.isAnswerTurn = false;
     this.isAwaitingResponse = false;
@@ -769,6 +824,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
   ngOnDestroy() {
     this.stopRatingVoiceCapture();
     this.cancelVoiceActivities();
+    this.clearInterviewTimer();
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window && this.speechVoicesChangedHandler) {
       if (typeof window.speechSynthesis.removeEventListener === 'function') {
@@ -1075,6 +1131,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
 
         if (res?.ended) {
           this.endNotice = message || 'Okay, ending the interview. Here is your summary.';
+          this.clearInterviewTimer();
           this.interviewStarted = false;
           this.isAwaitingResponse = false;
           this.isAnswerTurn = false;

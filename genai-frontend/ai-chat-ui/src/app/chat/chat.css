@@ -1,3 +1,36 @@
+.panel-head-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.interview-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--surface) 90%, var(--button) 10%);
+  color: var(--text);
+}
+
+.interview-timer-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.interview-timer-value {
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+
+.interview-timer.warning {
+  border-color: color-mix(in srgb, #ef4444 50%, var(--border) 50%);
+  background: color-mix(in srgb, #ef4444 12%, var(--surface) 88%);
+}
+
 .chat-messages-shell {
   position: relative;
   flex: 1;

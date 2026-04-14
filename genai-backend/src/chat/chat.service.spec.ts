@@ -135,4 +135,23 @@ describe('ChatService', () => {
     expect(result.message).toContain('What is a closure in JavaScript?');
     expect(result.message).not.toContain('Got it.');
   });
+
+  it('does not duplicate the greeting when the first question already includes one', async () => {
+    jest.spyOn(service, 'getAIResponse').mockResolvedValue({
+      rawText: '{"feedback":"","decision":"NEXT","nextQuestion":"Good morning, let\'s get started. Can you explain closures in JavaScript?"}',
+      feedback: '',
+      decision: 'NEXT',
+      nextQuestion: 'Good morning, let\'s get started. Can you explain closures in JavaScript?',
+      isStructured: true,
+    } as any);
+
+    const result = await service.startInterview({
+      level: 'easy',
+      experience: '0-1 years',
+      topic: 'JavaScript',
+      selfRating: 5,
+    });
+
+    expect(result.message).toBe('Good morning, let\'s get started. Can you explain closures in JavaScript?');
+  });
 });
