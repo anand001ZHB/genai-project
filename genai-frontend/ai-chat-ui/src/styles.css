@@ -976,6 +976,17 @@ body {
 }
 
 @media (max-width: 760px) {
+  .page-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+    padding-bottom: 0;
+  }
+
+  .app-footer {
+    position: static;
+  }
+
   .app-header {
     flex-direction: column;
     align-items: stretch;
@@ -993,8 +1004,10 @@ body {
   }
 
   .app-subtitle {
+    display: block;
     font-size: 0.62rem;
-    line-height: 1.2;
+    line-height: 1.25;
+    white-space: normal;
   }
 
   .header-actions {
@@ -1110,7 +1123,9 @@ body {
 
 @media (max-width: 420px) {
   .app-subtitle {
-    display: none;
+    display: block;
+    font-size: 0.58rem;
+    line-height: 1.2;
   }
 
   .theme-select-wrap,

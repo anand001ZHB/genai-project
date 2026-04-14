@@ -585,36 +585,62 @@
     display: flex;
     flex-direction: column;
     grid-template-columns: none;
-    flex: none;
-    min-height: auto;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
     overflow: visible;
+  }
+
+  .intro-panel,
+  .chat-panel {
+    width: 100%;
   }
 
   .chat-panel {
     height: auto;
-    overflow: visible;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .panel-head,
+  .panel-head-actions {
+    flex-wrap: wrap;
+  }
+
+  .panel-head-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
   }
 
   .chat-messages-shell {
-    flex: none;
-    min-height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: hidden;
   }
 
   .chat-panel .chat-messages {
-    flex: none;
-    min-height: auto;
+    flex: 1 1 auto;
+    min-height: 240px;
     height: auto;
-    max-height: none;
-    overflow-y: visible;
+    max-height: 46vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .chat-panel .chat-input {
     position: static;
+    margin-top: 8px;
   }
 
   .bubble {
     max-width: 100%;
+  }
+
+  .message.user .bubble,
+  .message.ai .bubble {
+    max-width: 86%;
   }
 
   .intro-panel {
