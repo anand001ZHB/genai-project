@@ -1,0 +1,82 @@
+<section class="landing-shell">
+  <header class="landing-header">
+    <a class="brand-mark" routerLink="/">
+      <span class="brand-kicker">GenAI Interview Suite</span>
+      <strong>InterviewBot</strong>
+    </a>
+
+    <div class="header-actions">
+      <ng-container *ngIf="!authService.isAuthenticated(); else loggedInActions">
+        <button type="button" class="ghost-btn" (click)="openAuth('header_login')">Login</button>
+        <button type="button" class="primary-btn" (click)="openAuth('header_signup')">Sign Up</button>
+      </ng-container>
+
+      <ng-template #loggedInActions>
+        <details class="profile-menu" *ngIf="authService.currentUser() as currentUser">
+          <summary>
+            <span class="profile-avatar">{{ currentUser.name.charAt(0) }}</span>
+            <span class="profile-copy">
+              <strong>{{ currentUser.name }}</strong>
+              <small>{{ currentUser.email }}</small>
+            </span>
+          </summary>
+
+          <div class="profile-panel">
+            <button type="button" class="menu-btn" (click)="goToRoleHome()">Open dashboard</button>
+            <button type="button" class="menu-btn danger" (click)="logout()">Logout</button>
+          </div>
+        </details>
+      </ng-template>
+    </div>
+  </header>
+
+  <main class="hero-grid">
+    <section class="hero-copy">
+      <p class="eyebrow">Role-based AI interview practice</p>
+      <h1>Interview prep, user access control, and analytics in one flow.</h1>
+      <p class="hero-text">
+        The platform now supports account creation, secure login, role-aware routing, and analytics events for visitors,
+        signups, logins, and interview activity.
+      </p>
+
+      <div class="hero-actions">
+        <button type="button" class="primary-btn large" (click)="openAuth('hero_start')">Start</button>
+        <button type="button" class="ghost-btn large" (click)="openAuth('header_signup')">Create Account</button>
+      </div>
+
+      <div class="hero-points">
+        <article>
+          <strong>Authentication</strong>
+          <span>Email/password login with JWT-backed sessions.</span>
+        </article>
+        <article>
+          <strong>Authorization</strong>
+          <span>Dedicated routes for admin and standard users.</span>
+        </article>
+        <article>
+          <strong>Analytics</strong>
+          <span>Tracks visits, signups, logins, and interview starts.</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="hero-panel" aria-label="Platform overview">
+      <div class="panel-card top-card">
+        <span class="panel-label">Admin overview</span>
+        <h2>See who visited, who signed up, and who logged in.</h2>
+        <p>Admins get a live dashboard for visitor volume, user counts, route activity, and recent events.</p>
+      </div>
+
+      <div class="panel-row">
+        <div class="panel-card stat-card">
+          <span>Visitor tracking</span>
+          <strong>Anonymous + authenticated</strong>
+        </div>
+        <div class="panel-card stat-card accent-card">
+          <span>Interview access</span>
+          <strong>Protected by role-aware routes</strong>
+        </div>
+      </div>
+    </section>
+  </main>
+</section>

@@ -1,0 +1,198 @@
+<section class="admin-shell">
+  <header class="admin-header">
+    <div>
+      <p class="kicker">Admin dashboard</p>
+      <div class="header-title-row" *ngIf="authService.currentUser() as currentUser">
+        <h1>Welcome {{ currentUser.name }}</h1>
+      </div>
+      <p class="subtitle">Visitor traffic, signups, logins, and interview usage are aggregated here.</p>
+    </div>
+
+    <div class="header-actions">
+      <details class="profile-menu" *ngIf="authService.currentUser() as currentUser">
+        <summary>
+          <span class="profile-avatar">{{ currentUser.name.charAt(0) }}</span>
+          <span class="profile-copy">
+            <strong>{{ currentUser.name }}</strong>
+            <small>{{ currentUser.email }}</small>
+          </span>
+        </summary>
+
+        <div class="profile-panel">
+          <button type="button" class="menu-btn" routerLink="/password" [queryParams]="{ mode: 'change' }">Password settings</button>
+          <button type="button" class="menu-btn" (click)="loadOverview()">Refresh analytics</button>
+          <button type="button" class="menu-btn danger" (click)="logout()">Logout</button>
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <p class="error-banner" *ngIf="errorMessage()">{{ errorMessage() }}</p>
+  <p class="loading-text" *ngIf="isLoading()">Loading analytics...</p>
+
+  <main class="admin-grid" *ngIf="overview() as data">
+    <section class="stat-grid">
+      <article class="stat-card">
+        <span>Total visitors</span>
+        <strong>{{ data.totals.uniqueVisitors }}</strong>
+      </article>
+      <article class="stat-card">
+        <span>Total users</span>
+        <strong>{{ data.totals.totalUsers }}</strong>
+      </article>
+      <article class="stat-card">
+        <span>Total logins</span>
+        <strong>{{ data.totals.totalLogins }}</strong>
+      </article>
+      <article class="stat-card">
+        <span>Interview starts</span>
+        <strong>{{ data.totals.interviewStarts }}</strong>
+      </article>
+    </section>
+
+    <section class="wide-card">
+      <div class="split-head">
+        <h2>Role distribution</h2>
+        <span>{{ data.totals.adminUsers }} admins / {{ data.totals.standardUsers }} users</span>
+      </div>
+      <div class="mini-bars">
+        <div>
+          <label>Admins</label>
+          <strong>{{ data.totals.adminUsers }}</strong>
+        </div>
+        <div>
+          <label>Users</label>
+          <strong>{{ data.totals.standardUsers }}</strong>
+        </div>
+        <div>
+          <label>Signups</label>
+          <strong>{{ data.totals.totalSignups }}</strong>
+        </div>
+        <div>
+          <label>Events</label>
+          <strong>{{ data.totals.totalEvents }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="wide-card">
+      <h2>Event types</h2>
+      <div class="list-grid">
+        <article *ngFor="let item of data.eventsByType">
+          <span>{{ item.eventType }}</span>
+          <strong>{{ item.count }}</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="wide-card">
+      <h2>Top routes</h2>
+      <div class="list-grid">
+        <article *ngFor="let item of data.topRoutes">
+          <span>{{ item.path }}</span>
+          <strong>{{ item.count }}</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="wide-card">
+      <h2>Daily visitors</h2>
+      <div class="list-grid">
+        <article *ngFor="let item of data.dailyVisitors">
+          <span>{{ item.date }}</span>
+          <strong>{{ item.count }}</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="wide-card">
+      <div class="split-head">
+        <h2>User management</h2>
+        <span>Create users, change roles, and remove accounts</span>
+      </div>
+
+      <p class="inline-error" *ngIf="usersErrorMessage()">{{ usersErrorMessage() }}</p>
+
+      <form class="user-form" (ngSubmit)="createUser()">
+        <label>
+          Name
+          <input type="text" name="name" [(ngModel)]="newUserForm.name" required />
+        </label>
+        <label>
+          Email
+          <input type="email" name="email" [(ngModel)]="newUserForm.email" required />
+        </label>
+        <label>
+          Password
+          <input type="password" name="password" [(ngModel)]="newUserForm.password" required minlength="6" />
+        </label>
+        <label>
+          Role
+          <select name="role" [(ngModel)]="newUserForm.role">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+        <button type="submit" class="primary-btn" [disabled]="isSubmittingUser()">
+          {{ isSubmittingUser() ? 'Creating...' : 'Add user' }}
+        </button>
+      </form>
+
+      <p class="loading-text" *ngIf="isUsersLoading()">Loading users...</p>
+
+      <div class="user-list" *ngIf="!isUsersLoading()">
+        <article *ngFor="let user of users()">
+          <div>
+            <strong>{{ user.name }}</strong>
+            <span>{{ user.email }}</span>
+          </div>
+          <div class="user-meta">
+            <label>
+              <span>Role</span>
+              <select [name]="'role-' + user.id" [(ngModel)]="roleDrafts[user.id]">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <span>{{ user.lastLoginAt ? (user.lastLoginAt | date: 'medium') : 'No login yet' }}</span>
+          </div>
+          <div class="user-actions">
+            <button
+              type="button"
+              class="ghost-btn"
+              (click)="updateUserRole(user.id)"
+              [disabled]="user.id === authService.currentUser()?.id || roleUpdateUserId() === user.id"
+            >
+              {{ roleUpdateUserId() === user.id ? 'Saving...' : 'Save role' }}
+            </button>
+            <button
+              type="button"
+              class="danger-btn"
+              (click)="deleteUser(user.id)"
+              [disabled]="user.id === authService.currentUser()?.id"
+            >
+              Remove
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="wide-card recent-card">
+      <h2>Recent activity</h2>
+      <div class="event-list">
+        <article *ngFor="let event of data.recentEvents">
+          <div>
+            <strong>{{ event.eventType }}</strong>
+            <span>{{ event.userName || event.userEmail || event.visitorId || 'Anonymous visitor' }}</span>
+          </div>
+          <div>
+            <span>{{ event.path || 'No route' }}</span>
+            <span>{{ event.status || 'tracked' }}</span>
+          </div>
+          <time>{{ event.createdAt | date: 'medium' }}</time>
+        </article>
+      </div>
+    </section>
+  </main>
+</section>

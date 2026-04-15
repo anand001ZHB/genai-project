@@ -1,0 +1,59 @@
+<section class="auth-shell">
+  <div class="auth-stage">
+    <div class="auth-copy">
+      <a routerLink="/" class="back-link">Back to home</a>
+      <p class="auth-kicker">Secure access</p>
+      <h1>Login or create an account to continue.</h1>
+      <p>
+        The interview room and dashboard routes are protected. Standard users are sent to their user page and admins
+        are sent to the analytics dashboard.
+      </p>
+    </div>
+
+    <div class="auth-card">
+      <div class="mode-switch">
+        <button type="button" [class.active]="mode() === 'login'" (click)="setMode('login')">Login</button>
+        <button type="button" [class.active]="mode() === 'signup'" (click)="setMode('signup')">Sign Up</button>
+      </div>
+
+      <p class="error-text" *ngIf="errorMessage()">{{ errorMessage() }}</p>
+
+      <form *ngIf="mode() === 'login'; else signupTemplate" class="auth-form" (ngSubmit)="submitLogin()">
+        <label>
+          Email
+          <input type="email" name="loginEmail" [(ngModel)]="loginForm.email" required />
+        </label>
+
+        <label>
+          Password
+          <input type="password" name="loginPassword" [(ngModel)]="loginForm.password" required minlength="6" />
+        </label>
+
+        <button type="submit" class="submit-btn" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Signing in...' : 'Login' }}</button>
+        <a [routerLink]="['/password']" [queryParams]="{ mode: 'forgot', email: loginForm.email }" class="text-link">Forgot password?</a>
+      </form>
+
+      <ng-template #signupTemplate>
+        <form class="auth-form" (ngSubmit)="submitSignup()">
+          <label>
+            Name
+            <input type="text" name="signupName" [(ngModel)]="signupForm.name" required />
+          </label>
+
+          <label>
+            Email
+            <input type="email" name="signupEmail" [(ngModel)]="signupForm.email" required />
+          </label>
+
+          <label>
+            Password
+            <input type="password" name="signupPassword" [(ngModel)]="signupForm.password" required minlength="6" />
+          </label>
+
+          <button type="submit" class="submit-btn" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Creating account...' : 'Create account' }}</button>
+          <a [routerLink]="['/password']" [queryParams]="{ mode: 'forgot', email: signupForm.email }" class="text-link">Forgot password?</a>
+        </form>
+      </ng-template>
+    </div>
+  </div>
+</section>

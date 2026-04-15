@@ -146,7 +146,7 @@ export class Chat implements AfterViewChecked, OnDestroy {
     { class: 'theme-light-blue', label: 'Light Blue' }
   ];
   currentThemeIndex = 0;
-  showWelcomeScreen = true;
+  showWelcomeScreen = false;
 
   constructor(private http: HttpClient, private ngZone: NgZone) {
     this.initializeVoiceSupport();

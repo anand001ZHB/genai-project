@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 
@@ -17,6 +18,12 @@ describe('ChatController', () => {
             endInterview: jest.fn(),
             casualChat: jest.fn(),
             getAIResponse: jest.fn(),
+          },
+        },
+        {
+          provide: AnalyticsService,
+          useValue: {
+            logEvent: jest.fn(),
           },
         },
       ],
